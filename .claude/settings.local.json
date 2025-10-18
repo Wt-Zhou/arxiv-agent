@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(source /home/zwt/anaconda3/etc/profile.d/conda.sh:*)",
+      "Bash(conda activate:*)",
+      "Bash(python main.py:*)",
+      "Bash(python:*)",
+      "Bash(cat:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
