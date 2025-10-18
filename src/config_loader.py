@@ -80,7 +80,13 @@ class ConfigLoader:
         return self.get('api_base_url', None)
 
     def get_api_key(self) -> str:
-        """获取API密钥"""
+        """获取API密钥（优先从环境变量读取）"""
+        # 优先从环境变量读取
+        api_key = os.getenv('ANTHROPIC_API_KEY')
+        if api_key:
+            return api_key.strip()
+
+        # 其次从配置文件读取
         api_key = self.get('api_key', None)
         return api_key.strip() if api_key else None
 
@@ -101,8 +107,18 @@ class ConfigLoader:
         return self.get('min_relevance', 'medium')
 
     def get_email_config(self) -> Dict[str, Any]:
-        """获取邮件配置"""
-        return self.get('email', {})
+        """获取邮件配置（支持环境变量覆盖）"""
+        email_config = self.get('email', {}).copy()
+
+        # 从环境变量覆盖敏感信息
+        if os.getenv('EMAIL_SENDER'):
+            email_config['sender_email'] = os.getenv('EMAIL_SENDER')
+        if os.getenv('EMAIL_PASSWORD'):
+            email_config['sender_password'] = os.getenv('EMAIL_PASSWORD')
+        if os.getenv('EMAIL_RECEIVER'):
+            email_config['receiver_email'] = os.getenv('EMAIL_RECEIVER')
+
+        return email_config
 
     def is_email_enabled(self) -> bool:
         """判断是否启用邮件发送"""

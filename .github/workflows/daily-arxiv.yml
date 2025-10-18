@@ -1,0 +1,77 @@
+name: Daily ArXiv Paper Analysis
+
+on:
+  # 定时触发：每天早上8点（北京时间）= UTC 0:00
+  schedule:
+    - cron: '0 0 * * *'  # 每天 UTC 0:00 运行
+
+  # 支持手动触发（用于测试）
+  workflow_dispatch:
+
+jobs:
+  analyze-papers:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Create config.yaml from template
+      run: |
+        # 从 config.yaml.example 创建 config.yaml
+        cp config.yaml.example config.yaml
+
+        # 使用环境变量替换敏感信息
+        # API密钥
+        sed -i "s|api_key:.*|api_key: ${{ secrets.ANTHROPIC_API_KEY }}|" config.yaml
+
+        # 邮箱配置
+        sed -i "s|sender_email:.*|sender_email: ${{ secrets.EMAIL_SENDER }}|" config.yaml
+        sed -i "s|sender_password:.*|sender_password: ${{ secrets.EMAIL_PASSWORD }}|" config.yaml
+        sed -i "s|receiver_email:.*|receiver_email: ${{ secrets.EMAIL_RECEIVER }}|" config.yaml
+
+        echo "✅ config.yaml created with secrets"
+
+    - name: Create reports directory
+      run: mkdir -p reports
+
+    - name: Run ArXiv Agent
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+        EMAIL_RECEIVER: ${{ secrets.EMAIL_RECEIVER }}
+      run: |
+        echo "🚀 Starting ArXiv paper analysis..."
+        python main.py
+        echo "✅ Analysis completed"
+
+    - name: Upload report as artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: arxiv-report-${{ github.run_number }}
+        path: reports/*.md
+        retention-days: 30
+
+    - name: Workflow summary
+      if: always()
+      run: |
+        echo "## 📊 Workflow Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Time**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Reports generated**: $(ls -1 reports/*.md 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+        if [ -f reports/*.md ]; then
+          echo "- **Latest report**: $(ls -t reports/*.md | head -1)" >> $GITHUB_STEP_SUMMARY
+        fi

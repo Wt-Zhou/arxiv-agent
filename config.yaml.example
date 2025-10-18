@@ -1,0 +1,60 @@
+# ArXiv Agent Configuration Example
+# 复制此文件为 config.yaml 并填写实际配置
+
+# 你的研究方向（用于论文相关性判断）
+research_interests:
+  - 自动驾驶
+  - 具身智能
+  - 强化学习
+  - VLM (Vision Language Models)
+  - VLA (Vision Language Action Models)
+  - 大语言模型
+  - 世界模型
+
+# ArXiv类别（会搜索这些类别的论文）
+arxiv_categories:
+  - cs.RO  # Robotics
+  - cs.CV  # Computer Vision
+  - cs.AI  # Artificial Intelligence
+  - cs.LG  # Machine Learning
+  - cs.CL  # Computation and Language
+
+# 每个类别搜索获取的论文数量上限
+max_results: 50
+
+# 搜索最近几天的论文
+days_back: 2
+
+# Claude API配置
+# API端点（如果使用第三方代理，修改此处；使用官方API请留空或注释掉）
+api_base_url: https://api.anthropic.com
+# API密钥（本地运行时填写，GitHub Actions 会从环境变量 ANTHROPIC_API_KEY 读取）
+api_key: your_api_key_here
+
+# Claude模型配置
+# 可用模型：claude-sonnet-4-5-20250929 (最强), claude-3-5-haiku-20241022 (快速便宜), claude-haiku-4-5-20251001 (平衡)
+claude_model: claude-sonnet-4-5-20250929
+claude_max_tokens: 1024
+
+# 筛选配置
+min_relevance: medium  # 最小相关性级别：high（只要高相关）、medium（中相关及以上）、low（低相关及以上）
+
+# 性能配置
+max_concurrent: 5  # 最大并发请求数（建议5-10，过高可能触发API限流）
+batch_size: 25  # 第一阶段批量筛选时每批论文数量（建议20-30，过大可能超token限制）
+detail_batch_size: 5  # 第二阶段批量详细分析时每批论文数量（建议5-10，论文摘要较长时建议减小）
+
+# 输出报告路径
+output_dir: reports
+
+# 邮件发送配置（可选，如果不需要邮件通知可以留空或注释掉）
+# GitHub Actions 会从环境变量读取邮箱配置
+email:
+    enabled: true
+    smtp_server: smtp.163.com  # SMTP服务器地址（Gmail: smtp.gmail.com, QQ: smtp.qq.com, 163: smtp.163.com）
+    smtp_port: 465  # SMTP端口（Gmail/163: 587或465, QQ: 465）
+    use_ssl: true   # 是否使用SSL（163/QQ建议true）
+    sender_email: your_email@163.com  # 发件人邮箱（GitHub Actions 会从 EMAIL_SENDER 环境变量读取）
+    sender_password: your_email_password  # 邮箱授权码（GitHub Actions 会从 EMAIL_PASSWORD 环境变量读取）
+    receiver_email: receiver@gmail.com  # 收件人邮箱（GitHub Actions 会从 EMAIL_RECEIVER 环境变量读取）
+    subject_prefix: "[ArXiv每日论文]"  # 邮件主题前缀
