@@ -51,16 +51,42 @@ class ConfigLoader:
         """获取研究方向列表"""
         return self.get('research_interests', [])
 
+    def get_research_prompt(self) -> str:
+        """获取研究兴趣的详细描述"""
+        prompt = self.get('research_prompt', None)
+        # 如果prompt存在且不为空字符串，返回去除首尾空白后的内容
+        if prompt and isinstance(prompt, str) and prompt.strip():
+            return prompt.strip()
+        return None
+
     def get_arxiv_categories(self) -> list:
         """获取arxiv类别列表"""
+        # 优先从sources.arxiv.categories读取
+        arxiv_config = self.get('sources', {}).get('arxiv', {})
+        categories = arxiv_config.get('categories', None)
+        if categories:
+            return categories
+        # 向后兼容旧配置
         return self.get('arxiv_categories', [])
 
     def get_max_results(self) -> int:
         """获取最大结果数"""
+        # 优先从sources.arxiv.max_results读取
+        arxiv_config = self.get('sources', {}).get('arxiv', {})
+        max_results = arxiv_config.get('max_results', None)
+        if max_results:
+            return max_results
+        # 向后兼容旧配置
         return self.get('max_results', 100)
 
     def get_days_back(self) -> int:
-        """获取搜索天数"""
+        """获取搜索天数（ArXiv）"""
+        # 优先从sources.arxiv.days_back读取
+        arxiv_config = self.get('sources', {}).get('arxiv', {})
+        days_back = arxiv_config.get('days_back', None)
+        if days_back:
+            return days_back
+        # 向后兼容旧配置
         return self.get('days_back', 1)
 
     def get_claude_model(self) -> str:
@@ -124,3 +150,50 @@ class ConfigLoader:
         """判断是否启用邮件发送"""
         email_config = self.get_email_config()
         return email_config.get('enabled', False)
+
+    def get_twitter_config(self) -> Dict[str, Any]:
+        """获取Twitter配置（支持环境变量覆盖）"""
+        # 从新配置结构读取（sources.twitter）
+        source_twitter = self.get('sources', {}).get('twitter', {})
+        # 从顶层twitter配置读取（bearer_token等）
+        top_twitter = self.get('twitter', {})
+
+        # 合并配置（sources.twitter优先）
+        twitter_config = {**top_twitter, **source_twitter}
+
+        # 从环境变量覆盖敏感信息
+        if os.getenv('TWITTER_USERNAME'):
+            twitter_config['username'] = os.getenv('TWITTER_USERNAME')
+        if os.getenv('TWITTER_EMAIL'):
+            twitter_config['email'] = os.getenv('TWITTER_EMAIL')
+        if os.getenv('TWITTER_PASSWORD'):
+            twitter_config['password'] = os.getenv('TWITTER_PASSWORD')
+
+        return twitter_config
+
+    def is_twitter_enabled(self) -> bool:
+        """判断是否启用Twitter功能"""
+        twitter_config = self.get_twitter_config()
+        return twitter_config.get('enabled', False)
+
+    def get_enabled_sources(self) -> list:
+        """获取启用的数据源列表"""
+        sources = []
+
+        # ArXiv 默认启用
+        if self.get('sources', {}).get('arxiv', {}).get('enabled', True):
+            sources.append('arxiv')
+
+        # CNS 期刊
+        if self.get('sources', {}).get('journals', {}).get('enabled', False):
+            sources.append('journals')
+
+        # # Twitter（已禁用）
+        # if self.get('sources', {}).get('twitter', {}).get('enabled', False):
+        #     sources.append('twitter')
+
+        return sources
+
+    def get_journal_config(self) -> Dict[str, Any]:
+        """获取期刊配置"""
+        return self.get('sources', {}).get('journals', {})

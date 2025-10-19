@@ -56,30 +56,35 @@ class ArxivSearcher:
 
             # 执行搜索
             category_count = 0
-            for result in search.results():
-                # 检查提交日期（使用published或updated中较新的）
-                submitted_date = result.published
-                updated_date = result.updated if hasattr(result, 'updated') else result.published
-                effective_date = max(submitted_date, updated_date)
+            try:
+                for result in search.results():
+                    # 检查提交日期（使用published或updated中较新的）
+                    submitted_date = result.published
+                    updated_date = result.updated if hasattr(result, 'updated') else result.published
+                    effective_date = max(submitted_date, updated_date)
 
-                # 只保留指定日期范围内的论文
-                if effective_date >= start_date.replace(tzinfo=effective_date.tzinfo):
-                    paper_info = {
-                        'title': result.title,
-                        'authors': [author.name for author in result.authors],
-                        'abstract': result.summary,
-                        'url': result.entry_id,
-                        'pdf_url': result.pdf_url,
-                        'published': result.published.strftime('%Y-%m-%d'),
-                        'updated': updated_date.strftime('%Y-%m-%d'),
-                        'categories': result.categories,
-                        'primary_category': result.primary_category
-                    }
-                    papers.append(paper_info)
-                    category_count += 1
-                else:
-                    # 由于是按时间降序排列，如果遇到超出范围的论文就可以停止
-                    break
+                    # 只保留指定日期范围内的论文
+                    if effective_date >= start_date.replace(tzinfo=effective_date.tzinfo):
+                        paper_info = {
+                            'title': result.title,
+                            'authors': [author.name for author in result.authors],
+                            'abstract': result.summary,
+                            'url': result.entry_id,
+                            'pdf_url': result.pdf_url,
+                            'published': result.published.strftime('%Y-%m-%d'),
+                            'updated': updated_date.strftime('%Y-%m-%d'),
+                            'categories': result.categories,
+                            'primary_category': result.primary_category
+                        }
+                        papers.append(paper_info)
+                        category_count += 1
+                    else:
+                        # 由于是按时间降序排列，如果遇到超出范围的论文就可以停止
+                        break
+            except arxiv.UnexpectedEmptyPageError:
+                # ArXiv API返回空页面，说明已经没有更多结果了
+                # 这是正常情况，不需要报错
+                pass
 
             print(f"  找到 {category_count} 篇论文")
             total_fetched += category_count

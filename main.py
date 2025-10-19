@@ -27,6 +27,9 @@ from arxiv_searcher import ArxivSearcher
 from llm_analyzer import LLMAnalyzer
 from report_generator import ReportGenerator
 from email_sender import EmailSender
+from journal_fetcher import JournalFetcher
+from twitter_api_v2_fetcher import TwitterAPIv2Fetcher
+from twitter_analyzer import TwitterAnalyzer
 
 
 def main():
@@ -57,6 +60,7 @@ def main():
         config = ConfigLoader(args.config)
 
         research_interests = config.get_research_interests()
+        research_prompt = config.get_research_prompt()
         arxiv_categories = config.get_arxiv_categories()
         max_results = config.get_max_results()
         days_back = args.days if args.days else config.get_days_back()
@@ -64,34 +68,118 @@ def main():
         min_relevance_config = config.get_min_relevance()
 
         print(f"研究方向: {', '.join(research_interests)}")
+        if research_prompt:
+            print(f"研究兴趣描述: 已设置（使用自定义描述进行相关性分析）")
         print(f"ArXiv类别: {', '.join(arxiv_categories)}")
         print(f"搜索最近 {days_back} 天的论文")
         print(f"最大结果数: {max_results}")
         relevance_label = {'high': '高', 'medium': '中', 'low': '低'}.get(min_relevance_config, min_relevance_config)
         print(f"相关性阈值: {relevance_label}相关及以上")
 
-        # 1. 搜索论文
+        # 1. 从启用的数据源获取内容
         print(f"\n{'=' * 60}")
-        print("步骤 1: 搜索ArXiv论文")
+        print("步骤 1: 从数据源获取内容")
         print("=" * 60)
 
-        searcher = ArxivSearcher(
-            categories=arxiv_categories,
-            max_results=max_results
-        )
+        enabled_sources = config.get_enabled_sources()
+        print(f"启用的数据源: {', '.join(enabled_sources)}\n")
 
-        papers = searcher.search_recent_papers(days_back=days_back)
+        all_papers = []
+        all_tweets = []
 
-        if not papers:
-            print("未找到任何论文。")
+        # ArXiv 论文
+        if 'arxiv' in enabled_sources:
+            print(f"{'=' * 60}")
+            print("1.1 搜索 ArXiv 论文")
+            print("=" * 60)
+
+            searcher = ArxivSearcher(
+                categories=arxiv_categories,
+                max_results=max_results
+            )
+            papers = searcher.search_recent_papers(days_back=days_back)
+            all_papers.extend(papers)
+            print(f"✅ ArXiv: 找到 {len(papers)} 篇论文\n")
+
+        # CNS 期刊文章
+        if 'journals' in enabled_sources:
+            print(f"{'=' * 60}")
+            print("1.2 获取 CNS 期刊文章")
+            print("=" * 60)
+
+            journal_config = config.get('sources', {}).get('journals', {})
+            journal_days = journal_config.get('days_back', 7)
+            selected_journals = journal_config.get('selected_journals', None)
+
+            journal_fetcher = JournalFetcher(selected_journals=selected_journals)
+            journal_articles = journal_fetcher.fetch_recent_articles(days_back=journal_days)
+            all_papers.extend(journal_articles)
+            print(f"✅ 期刊: 找到 {len(journal_articles)} 篇文章\n")
+
+        # # Twitter 推文（已注释）
+        # if 'twitter' in enabled_sources:
+        #     print(f"{'=' * 60}")
+        #     print("1.3 获取 Twitter 推文")
+        #     print("=" * 60)
+        #
+        #     twitter_config = config.get_twitter_config()
+        #     bearer_token = twitter_config.get('bearer_token') or os.getenv('TWITTER_BEARER_TOKEN')
+        #
+        #     if bearer_token:
+        #         try:
+        #             twitter_fetcher = TwitterAPIv2Fetcher(bearer_token=bearer_token)
+        #
+        #             # 根据配置选择获取模式
+        #             my_username = twitter_config.get('my_username', '').strip()
+        #             following_usernames = twitter_config.get('following_usernames', [])
+        #
+        #             if my_username:
+        #                 # 模式3：从您的关注列表获取
+        #                 print(f"使用模式：从 @{my_username} 的关注列表获取推文")
+        #                 tweets = twitter_fetcher.get_tweets_from_my_following(
+        #                     my_username=my_username,
+        #                     tweets_per_user=twitter_config.get('tweets_per_user', 5),
+        #                     days_back=twitter_config.get('days_back', 7),
+        #                     max_users=twitter_config.get('max_following', 50)
+        #                 )
+        #             elif following_usernames:
+        #                 # 模式2：从指定用户列表获取
+        #                 print(f"使用模式：从指定的 {len(following_usernames)} 个用户获取推文")
+        #                 tweets = twitter_fetcher.get_tweets_from_list(
+        #                     usernames=following_usernames,
+        #                     tweets_per_user=twitter_config.get('tweets_per_user', 5),
+        #                     days_back=twitter_config.get('days_back', 7)
+        #                 )
+        #             else:
+        #                 # 模式1：根据研究兴趣搜索
+        #                 print("使用模式：根据研究兴趣搜索推文")
+        #                 tweets = twitter_fetcher.search_by_research_interests(
+        #                     research_interests=research_interests[:5],  # 限制关键词数量
+        #                     max_results=twitter_config.get('max_tweets', 50),
+        #                     days_back=twitter_config.get('days_back', 7)
+        #                 )
+        #
+        #             all_tweets = tweets
+        #             print(f"✅ Twitter: 找到 {len(tweets)} 条推文\n")
+        #         except Exception as e:
+        #             print(f"⚠️  Twitter 获取失败: {e}\n")
+        #     else:
+        #         print("⚠️  未配置 Twitter Bearer Token，跳过\n")
+
+        if not all_papers:
+            print("未找到任何内容。")
             return
 
-        print(f"找到 {len(papers)} 篇论文")
+        print(f"{'=' * 60}")
+        print(f"总计: 论文/文章 {len(all_papers)} 篇")
+        print("=" * 60)
 
-        # 2. 分析论文（可选）
+        papers = all_papers
+
+        # 2. 分析内容（可选）
         if not args.no_analysis:
             print(f"\n{'=' * 60}")
-            print("步骤 2: 使用Claude分析论文相关性")
+            print("步骤 2: 使用Claude分析内容相关性")
             print("=" * 60)
 
             # 获取API配置（优先从config.yaml，然后从.env）
@@ -116,10 +204,29 @@ def main():
                 detail_batch_size=config.get_detail_batch_size()
             )
 
-            # 使用两阶段异步分析（快速筛选 + 详细分析）
-            analyzed_papers = asyncio.run(
-                analyzer.two_stage_analyze_papers_async(papers, research_interests)
-            )
+            # 分析论文和文章
+            if papers:
+                print(f"\n分析 {len(papers)} 篇论文/文章...")
+                analyzed_papers = asyncio.run(
+                    analyzer.two_stage_analyze_papers_async(papers, research_interests, research_prompt)
+                )
+            else:
+                analyzed_papers = []
+
+            # 分析推文
+            analyzed_tweets = []
+            if all_tweets:
+                print(f"\n分析 {len(all_tweets)} 条推文...")
+                twitter_analyzer = TwitterAnalyzer(
+                    api_key=api_key,
+                    model=config.get_claude_model(),
+                    max_tokens=config.get_claude_max_tokens(),
+                    base_url=api_base_url,
+                    max_concurrent=max_concurrent
+                )
+                analyzed_tweets = asyncio.run(
+                    twitter_analyzer.analyze_tweets_async(all_tweets, research_interests, research_prompt)
+                )
 
             # 获取相关性阈值（命令行参数覆盖配置文件）
             min_relevance = args.min_relevance if args.min_relevance else config.get_min_relevance()
@@ -128,15 +235,22 @@ def main():
             relevant_papers = analyzer.filter_relevant_papers(
                 analyzed_papers,
                 min_relevance=min_relevance
-            )
+            ) if analyzed_papers else []
+
+            # 过滤相关推文
+            relevant_tweets = [t for t in analyzed_tweets if t.get('relevance_level') in ['high', 'medium']] if analyzed_tweets else []
 
             relevance_label = {'high': '高', 'medium': '中', 'low': '低'}.get(min_relevance, min_relevance)
-            print(f"\n根据阈值（{relevance_label}相关及以上）找到 {len(relevant_papers)} 篇相关论文")
+            print(f"\n根据阈值（{relevance_label}相关及以上）:")
+            print(f"  - 相关论文/文章: {len(relevant_papers)} 篇")
+            print(f"  - 相关推文: {len(relevant_tweets)} 条")
 
             papers_to_report = relevant_papers
+            tweets_to_report = relevant_tweets
         else:
             print("\n跳过AI分析")
             papers_to_report = papers
+            tweets_to_report = all_tweets
 
         # 3. 生成报告
         print(f"\n{'=' * 60}")
@@ -144,15 +258,19 @@ def main():
         print("=" * 60)
 
         generator = ReportGenerator(output_dir=output_dir)
-        report_path = generator.generate_report(papers_to_report, research_interests)
+        report_path = generator.generate_report(papers_to_report, research_interests, tweets_to_report)
 
         print(f"\n{'=' * 60}")
         print("完成!")
         print("=" * 60)
         print(f"报告已保存到: {report_path}")
-        print(f"总论文数: {len(papers)}")
+        print(f"总论文/文章数: {len(papers)}")
+        if all_tweets:
+            print(f"总推文数: {len(all_tweets)}")
         if not args.no_analysis:
-            print(f"相关论文数: {len(papers_to_report)}")
+            print(f"相关论文/文章数: {len(papers_to_report)}")
+            if tweets_to_report:
+                print(f"相关推文数: {len(tweets_to_report)}")
 
         # 4. 发送邮件（如果启用）
         if config.is_email_enabled():
@@ -183,34 +301,20 @@ def main():
                     subject_prefix = email_config.get('subject_prefix', '[ArXiv每日论文]')
                     subject = f"{subject_prefix} {datetime.now().strftime('%Y-%m-%d')}"
 
-                    # 构建邮件摘要
-                    if not args.no_analysis:
-                        summary = f"""今日ArXiv论文分析报告已生成！
+                    # 生成HTML格式的报告内容
+                    print("正在生成HTML格式报告...")
+                    html_content = generator.generate_html_report(
+                        papers_to_report,
+                        research_interests,
+                        tweets_to_report
+                    )
 
-📊 统计信息：
-- 总论文数: {len(papers)} 篇
-- 相关论文数: {len(papers_to_report)} 篇
-  - 高相关: {sum(1 for p in papers_to_report if p.get('relevance_level') == 'high')} 篇
-  - 中相关: {sum(1 for p in papers_to_report if p.get('relevance_level') == 'medium')} 篇
-
-🔍 研究方向：
-{chr(10).join(f'  - {interest}' for interest in research_interests)}
-
-详细内容请查看附件报告。"""
-                    else:
-                        summary = f"""今日ArXiv论文搜索完成！
-
-📊 统计信息：
-- 总论文数: {len(papers)} 篇
-
-详细内容请查看附件报告。"""
-
-                    # 发送邮件
-                    sender.send_report(
+                    # 发送HTML格式邮件（MD报告作为附件）
+                    sender.send_html_report(
                         receiver_emails=receiver_emails,
                         subject=subject,
-                        report_path=report_path,
-                        summary=summary
+                        html_content=html_content,
+                        attachments=[report_path]
                     )
 
             except Exception as e:

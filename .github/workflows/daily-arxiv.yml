@@ -1,19 +1,28 @@
 name: Daily ArXiv Paper Analysis
 
 on:
-  # 定时触发：每天早上8点（北京时间）= UTC 0:00
+  # 每天UTC时间 00:00 运行（北京时间 08:00）
   schedule:
-    - cron: '0 0 * * *'  # 每天 UTC 0:00 运行
+    - cron: '0 0 * * *'
 
-  # 支持手动触发（用于测试）
+  # 允许手动触发
   workflow_dispatch:
+    inputs:
+      days_back:
+        description: '搜索最近几天的论文'
+        required: false
+        default: '3'
+      max_concurrent:
+        description: '最大并发请求数'
+        required: false
+        default: '5'
 
 jobs:
   analyze-papers:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
 
     - name: Set up Python
@@ -27,51 +36,124 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Create config.yaml from template
+    - name: Create config from template
       run: |
-        # 从 config.yaml.example 创建 config.yaml
-        cp config.yaml.example config.yaml
+        # 从环境变量创建配置文件
+        cat > config.yaml << 'CONFIGEOF'
+        # ============================================================
+        # ArXiv Agent 配置文件 (GitHub Actions)
+        # ============================================================
 
-        # 使用环境变量替换敏感信息
-        # API密钥
-        sed -i "s|api_key:.*|api_key: ${{ secrets.ANTHROPIC_API_KEY }}|" config.yaml
+        # ============================================================
+        # 1. 研究方向配置
+        # ============================================================
+        research_interests:
+          - 自动驾驶
+          - 具身智能
+          - 强化学习
+          - VLM (Vision Language Models)
+          - VLA (Vision Language Action Models)
+          - 大语言模型
+          - 世界模型
 
-        # 邮箱配置
-        sed -i "s|sender_email:.*|sender_email: ${{ secrets.EMAIL_SENDER }}|" config.yaml
-        sed -i "s|sender_password:.*|sender_password: ${{ secrets.EMAIL_PASSWORD }}|" config.yaml
-        sed -i "s|receiver_email:.*|receiver_email: ${{ secrets.EMAIL_RECEIVER }}|" config.yaml
+        research_prompt: |
+          我最近关注自动驾驶和具身智能领域，特别是以下几个方向：
 
-        echo "✅ config.yaml created with secrets"
+          1. 端到端自动驾驶系统，尤其是使用视觉语言模型(VLM)和世界模型进行决策的方法
+          2. 具身智能中的Vision-Language-Action (VLA)模型，能够将视觉输入和语言指令转化为机器人动作
+          3. 强化学习在自动驾驶场景中的应用，包括离线强化学习、模仿学习等
+          4. 大语言模型在机器人任务规划和推理中的应用
+          5. 除了上述以外，我还关注一些尚未在自动驾驶和具身智能中广泛应用但已经在VLM、强化学习、大语言模型的其他应用场景中取得突破性进展的方法，且有望迁移到自动驾驶和具身智能领域。
 
-    - name: Create reports directory
-      run: mkdir -p reports
+          我对理论创新和实际应用都感兴趣，尤其关注能够在真实世界部署的方法。
 
-    - name: Run ArXiv Agent
+        # ============================================================
+        # 2. 数据源配置
+        # ============================================================
+        sources:
+          arxiv:
+            enabled: true
+            categories:
+              - cs.RO  # Robotics
+              - cs.CV  # Computer Vision
+              - cs.AI  # Artificial Intelligence
+              - cs.LG  # Machine Learning
+              - cs.CL  # Computation and Language
+            max_results: 50
+            days_back: ${{ github.event.inputs.days_back || 3 }}
+
+          journals:
+            enabled: true
+            days_back: 7
+            selected_journals:
+              - Nature
+              - Science
+              - Nature Machine Intelligence
+              - Science Robotics
+              - Nature Communications
+
+        # ============================================================
+        # 3. Claude API 配置
+        # ============================================================
+        api_base_url: ${API_BASE_URL}
+        api_key: ${ANTHROPIC_API_KEY}
+        claude_model: claude-sonnet-4-5-20250929
+        claude_max_tokens: 1024
+
+        # ============================================================
+        # 4. 筛选与性能配置
+        # ============================================================
+        min_relevance: medium
+        max_concurrent: ${{ github.event.inputs.max_concurrent || 5 }}
+        batch_size: 25
+        detail_batch_size: 5
+
+        # ============================================================
+        # 5. 输出与通知配置
+        # ============================================================
+        output_dir: reports
+
+        email:
+          enabled: true
+          smtp_server: ${EMAIL_SMTP_SERVER}
+          smtp_port: ${EMAIL_SMTP_PORT}
+          use_ssl: true
+          sender_email: ${EMAIL_SENDER}
+          sender_password: ${EMAIL_PASSWORD}
+          receiver_email: ${EMAIL_RECEIVER}
+          subject_prefix: "[ArXiv每日论文]"
+        CONFIGEOF
+
+        # 替换环境变量
+        envsubst < config.yaml > config.tmp && mv config.tmp config.yaml
       env:
+        API_BASE_URL: ${{ secrets.API_BASE_URL }}
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        EMAIL_SMTP_SERVER: ${{ secrets.EMAIL_SMTP_SERVER }}
+        EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT }}
         EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
         EMAIL_RECEIVER: ${{ secrets.EMAIL_RECEIVER }}
-      run: |
-        echo "🚀 Starting ArXiv paper analysis..."
-        python main.py
-        echo "✅ Analysis completed"
 
-    - name: Upload report as artifact
+    - name: Run ArXiv Agent
+      run: |
+        python main.py
+      env:
+        PYTHONPATH: ${{ github.workspace }}/src
+
+    - name: Upload reports
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: arxiv-report-${{ github.run_number }}
-        path: reports/*.md
+        name: arxiv-reports-${{ github.run_number }}
+        path: reports/
         retention-days: 30
 
-    - name: Workflow summary
-      if: always()
+    - name: Commit and push reports (optional)
+      if: success()
       run: |
-        echo "## 📊 Workflow Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Time**: $(date -u)" >> $GITHUB_STEP_SUMMARY
-        echo "- **Reports generated**: $(ls -1 reports/*.md 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
-        if [ -f reports/*.md ]; then
-          echo "- **Latest report**: $(ls -t reports/*.md | head -1)" >> $GITHUB_STEP_SUMMARY
-        fi
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add reports/
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Daily report: $(date +'%Y-%m-%d')" && git push)
+      continue-on-error: true

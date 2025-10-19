@@ -6,7 +6,9 @@
       "Bash(conda activate:*)",
       "Bash(python main.py:*)",
       "Bash(python:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(pip install:*)",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []

@@ -202,6 +202,45 @@ python main.py --help
 
 ## 定时自动运行
 
+### 🚀 推荐方式：使用 GitHub Actions（云端运行，完全免费）
+
+GitHub Actions 可以在云端每天自动运行，无需本地服务器，完全免费！
+
+**优势**：
+- ✅ 无需本地服务器24小时运行
+- ✅ GitHub Actions 对公共仓库完全免费
+- ✅ 自动发送 HTML 格式邮件报告
+- ✅ 报告文件自动上传保存
+- ✅ 支持手动触发和自定义参数
+
+**快速设置**（5分钟）：
+
+1. **Fork 或上传代码到 GitHub**
+
+2. **配置 GitHub Secrets**
+   - 进入仓库 **Settings** > **Secrets and variables** > **Actions**
+   - 添加以下 Secrets：
+     - `ANTHROPIC_API_KEY`: 你的 Claude API 密钥
+     - `EMAIL_SENDER`: 发送邮箱（如 your@163.com）
+     - `EMAIL_PASSWORD`: 邮箱授权码（不是登录密码）
+     - `EMAIL_RECEIVER`: 接收邮箱
+     - （可选）`API_BASE_URL`: API 端点（使用代理时）
+
+3. **启用 Actions**
+   - workflow 文件已包含在 `.github/workflows/daily-arxiv.yml`
+   - 推送代码后自动启用
+
+4. **测试运行**
+   - 进入 **Actions** 页面
+   - 选择 **Daily ArXiv Paper Analysis**
+   - 点击 **Run workflow** 手动测试
+
+完成！每天 UTC 00:00（北京时间 08:00）会自动运行并发送邮件。
+
+📖 **详细配置指南**: [GITHUB_ACTIONS_SETUP.md](GITHUB_ACTIONS_SETUP.md)
+
+---
+
 ### 使用Cron (Linux/Mac)
 
 编辑crontab:

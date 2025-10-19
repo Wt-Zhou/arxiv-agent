@@ -73,7 +73,7 @@ class LLMAnalyzer:
         else:
             raise Exception(f"API返回错误: {response.status_code} - {response.text[:200]}")
 
-    async def _batch_filter_relevance_async(self, papers_batch: List[Dict], research_interests: List[str], client: httpx.AsyncClient, semaphore: asyncio.Semaphore) -> List[Tuple[int, str, List[str]]]:
+    async def _batch_filter_relevance_async(self, papers_batch: List[Dict], research_interests: List[str], client: httpx.AsyncClient, semaphore: asyncio.Semaphore, research_prompt: str = None) -> List[Tuple[int, str, List[str]]]:
         """
         批量快速筛选论文相关性（第一阶段）
 
@@ -82,6 +82,7 @@ class LLMAnalyzer:
             research_interests: 研究方向列表
             client: httpx异步客户端
             semaphore: 并发控制信号量
+            research_prompt: 研究兴趣的详细描述（可选，如果提供则优先使用）
 
         Returns:
             [(论文索引, 相关性级别, 匹配领域), ...]
@@ -94,10 +95,17 @@ class LLMAnalyzer:
                 papers_text += f"标题: {paper['title']}\n"
                 papers_text += f"摘要: {paper['abstract'][:500]}...\n"  # 限制摘要长度节省tokens
 
+            # 根据是否提供了 research_prompt 来构建不同的用户研究方向描述
+            if research_prompt:
+                research_description = f"""用户的研究兴趣描述：
+{research_prompt}"""
+            else:
+                research_description = f"""用户的研究方向：
+{', '.join(research_interests)}"""
+
             prompt = f"""你是一个AI研究助手。请快速判断以下论文是否与用户的研究方向相关。
 
-用户的研究方向：
-{', '.join(research_interests)}
+{research_description}
 
 {papers_text}
 
@@ -108,6 +116,7 @@ class LLMAnalyzer:
 注意：
 - 必须包含【论文X】标记
 - 只判断相关性，不需要翻译或详细分析
+- **特别提示**：来自Nature、Science、Cell等顶级期刊的文章通常代表前沿突破，应倾向于给予更高的相关性评分
 - 准确判断相关性级别"""
 
             try:
@@ -312,7 +321,7 @@ class LLMAnalyzer:
                 return [(idx, {'affiliations': None, 'abstract_zh': '', 'summary': '', 'reason': f'分析失败: {error_msg}'}) for idx, _ in papers_batch]
 
 
-    async def two_stage_analyze_papers_async(self, papers: List[Dict], research_interests: List[str]) -> List[Dict]:
+    async def two_stage_analyze_papers_async(self, papers: List[Dict], research_interests: List[str], research_prompt: str = None) -> List[Dict]:
         """
         两阶段异步分析论文（优化版）
 
@@ -322,6 +331,7 @@ class LLMAnalyzer:
         Args:
             papers: 论文列表
             research_interests: 研究方向列表
+            research_prompt: 研究兴趣的详细描述（可选，如果提供则优先使用）
 
         Returns:
             带有分析结果的论文列表
@@ -331,6 +341,10 @@ class LLMAnalyzer:
         print(f"🚀 第一阶段：批量快速筛选 {total} 篇论文的相关性")
         print(f"   - 批次大小: {self.batch_size} 篇/批")
         print(f"   - 并发数: {self.max_concurrent}")
+        if research_prompt:
+            print(f"   - 使用模式: 自定义研究兴趣描述")
+        else:
+            print(f"   - 使用模式: 关键词列表")
         print(f"{'='*60}")
 
         # 第一阶段：批量筛选相关性
@@ -351,7 +365,7 @@ class LLMAnalyzer:
 
             # 并发处理所有批次
             tasks = [
-                self._batch_filter_relevance_async(batch, research_interests, client, semaphore)
+                self._batch_filter_relevance_async(batch, research_interests, client, semaphore, research_prompt)
                 for batch in batches
             ]
 

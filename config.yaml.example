@@ -1,7 +1,14 @@
-# ArXiv Agent Configuration Example
-# 复制此文件为 config.yaml 并填写实际配置
+# ============================================================
+# ArXiv Agent 配置文件示例
+# ============================================================
+# 使用说明：
+# 1. 复制此文件为 config.yaml
+# 2. 填入你的 API 密钥和邮箱配置
+# 3. 根据需要修改研究方向和数据源配置
 
-# 你的研究方向（用于论文相关性判断）
+# ============================================================
+# 1. 研究方向配置
+# ============================================================
 research_interests:
   - 自动驾驶
   - 具身智能
@@ -11,50 +18,82 @@ research_interests:
   - 大语言模型
   - 世界模型
 
-# ArXiv类别（会搜索这些类别的论文）
-arxiv_categories:
-  - cs.RO  # Robotics
-  - cs.CV  # Computer Vision
-  - cs.AI  # Artificial Intelligence
-  - cs.LG  # Machine Learning
-  - cs.CL  # Computation and Language
+# 研究兴趣详细描述（可选，优先用于相关性分析）
+research_prompt: |
+  我最近关注自动驾驶和具身智能领域，特别是以下几个方向：
 
-# 每个类别搜索获取的论文数量上限
-max_results: 50
+  1. 端到端自动驾驶系统，尤其是使用视觉语言模型(VLM)和世界模型进行决策的方法
+  2. 具身智能中的Vision-Language-Action (VLA)模型，能够将视觉输入和语言指令转化为机器人动作
+  3. 强化学习在自动驾驶场景中的应用，包括离线强化学习、模仿学习等
+  4. 大语言模型在机器人任务规划和推理中的应用
+  5. 除了上述以外，我还关注一些尚未在自动驾驶和具身智能中广泛应用但已经在VLM、强化学习、大语言模型的其他应用场景中取得突破性进展的方法，且有望迁移到自动驾驶和具身智能领域。
 
-# 搜索最近几天的论文
-days_back: 3
+  我对理论创新和实际应用都感兴趣，尤其关注能够在真实世界部署的方法。
 
-# Claude API配置
-# API端点（如果使用第三方代理，修改此处；使用官方API请留空或注释掉）
-api_base_url: https://api.anthropic.com
-# API密钥（本地运行时填写，GitHub Actions 会从环境变量 ANTHROPIC_API_KEY 读取）
-api_key: your_api_key_here
+# ============================================================
+# 2. 数据源配置
+# ============================================================
+sources:
+  # ArXiv论文源
+  arxiv:
+    enabled: true
+    categories:  # 搜索的ArXiv类别
+      - cs.RO  # Robotics
+      - cs.CV  # Computer Vision
+      - cs.AI  # Artificial Intelligence
+      - cs.LG  # Machine Learning
+      - cs.CL  # Computation and Language
+    max_results: 50  # 每个类别最多获取多少篇
+    days_back: 3     # 搜索最近几天
 
-# Claude模型配置
-# 可用模型：claude-sonnet-4-5-20250929 (最强), claude-3-5-haiku-20241022 (快速便宜), claude-haiku-4-5-20251001 (平衡)
+  # 学术期刊源（Nature、Science、Cell系列）
+  journals:
+    enabled: true
+    days_back: 7
+    selected_journals:  # 只获取这些期刊（留空则获取所有可用期刊）
+      - Nature
+      - Science
+      - Nature Machine Intelligence
+      - Science Robotics
+      - Nature Communications
+
+# ============================================================
+# 3. Claude API 配置
+# ============================================================
+# API端点（使用第三方代理时修改，官方API留空）
+api_base_url: https://your-api-proxy.com/api  # 替换为你的 API 端点，官方 API 留空
+
+# API密钥（也可以通过环境变量 ANTHROPIC_API_KEY 设置）
+api_key: your-api-key-here  # 替换为你的 API 密钥
+
+# 模型配置
+# 可用模型：claude-sonnet-4-5-20250929 (最强), claude-3-5-haiku-20241022 (快速便宜)
 claude_model: claude-sonnet-4-5-20250929
 claude_max_tokens: 1024
 
-# 筛选配置
-min_relevance: medium  # 最小相关性级别：high（只要高相关）、medium（中相关及以上）、low（低相关及以上）
+# ============================================================
+# 4. 筛选与性能配置
+# ============================================================
+# 相关性阈值：high（只要高相关）、medium（中相关及以上）、low（低相关及以上）
+min_relevance: medium
 
-# 性能配置
-max_concurrent: 5  # 最大并发请求数（建议5-10，过高可能触发API限流）
-batch_size: 25  # 第一阶段批量筛选时每批论文数量（建议20-30，过大可能超token限制）
-detail_batch_size: 5  # 第二阶段批量详细分析时每批论文数量（建议5-10，论文摘要较长时建议减小）
+# 并发性能配置
+max_concurrent: 5      # 最大并发请求数（建议5-10）
+batch_size: 25         # 第一阶段批量筛选时每批论文数量（建议20-30）
+detail_batch_size: 5   # 第二阶段详细分析时每批论文数量（建议5-10）
 
-# 输出报告路径
+# ============================================================
+# 5. 输出与通知配置
+# ============================================================
 output_dir: reports
 
-# 邮件发送配置（可选，如果不需要邮件通知可以留空或注释掉）
-# GitHub Actions 会从环境变量读取邮箱配置
+# 邮件通知配置（可选）
 email:
-    enabled: true
-    smtp_server: smtp.163.com  # SMTP服务器地址（Gmail: smtp.gmail.com, QQ: smtp.qq.com, 163: smtp.163.com）
-    smtp_port: 465  # SMTP端口（Gmail/163: 587或465, QQ: 465）
-    use_ssl: true   # 是否使用SSL（163/QQ建议true）
-    sender_email: your_email@163.com  # 发件人邮箱（GitHub Actions 会从 EMAIL_SENDER 环境变量读取）
-    sender_password: your_email_password  # 邮箱授权码（GitHub Actions 会从 EMAIL_PASSWORD 环境变量读取）
-    receiver_email: receiver@gmail.com  # 收件人邮箱（GitHub Actions 会从 EMAIL_RECEIVER 环境变量读取）
-    subject_prefix: "[ArXiv每日论文]"  # 邮件主题前缀
+  enabled: true
+  smtp_server: smtp.163.com       # SMTP服务器
+  smtp_port: 465                  # SMTP端口
+  use_ssl: true
+  sender_email: your_email@163.com          # 发送邮箱，替换为你的邮箱
+  sender_password: your_email_auth_code     # 邮箱授权码（不是登录密码），替换为你的授权码
+  receiver_email: receiver@gmail.com        # 接收邮箱，替换为你的接收邮箱
+  subject_prefix: "[ArXiv每日论文]"
