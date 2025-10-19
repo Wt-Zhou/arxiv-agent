@@ -23,7 +23,7 @@ arxiv_categories:
 max_results: 50
 
 # 搜索最近几天的论文
-days_back: 2
+days_back: 3
 
 # Claude API配置
 # API端点（如果使用第三方代理，修改此处；使用官方API请留空或注释掉）
