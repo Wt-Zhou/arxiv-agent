@@ -1,77 +1,72 @@
 """
-使用Claude LLM分析论文相关性 - 两阶段优化版本
+使用LLM分析论文相关性 - 两阶段优化版本
+支持 Anthropic Claude 和 OpenAI 兼容的API（国产模型）
 """
 import os
 import asyncio
 import httpx
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
+from llm_client import LLMClient
 
 
 class LLMAnalyzer:
-    """使用Claude分析论文相关性（两阶段：快速筛选 + 详细分析）"""
+    """使用LLM分析论文相关性（两阶段：快速筛选 + 详细分析）"""
 
-    def __init__(self, api_key: str = None, model: str = "claude-sonnet-4-5-20250929", max_tokens: int = 1024, base_url: str = None, max_concurrent: int = 5, batch_size: int = 25, detail_batch_size: int = 8):
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: str = "claude-sonnet-4-5-20250929",
+        max_tokens: int = 1024,
+        base_url: Optional[str] = None,
+        api_type: str = "anthropic",
+        max_concurrent: int = 5,
+        batch_size: int = 25,
+        detail_batch_size: int = 8
+    ):
         """
         初始化LLM分析器
 
         Args:
-            api_key: Anthropic API密钥
-            model: 使用的Claude模型
+            api_key: API密钥
+            model: 使用的模型名称
             max_tokens: 最大token数
             base_url: 自定义API端点 (可选)
+            api_type: API类型 ("anthropic" 或 "openai")
             max_concurrent: 最大并发请求数 (默认5)
             batch_size: 第一阶段批量筛选时每批论文数量 (默认25)
             detail_batch_size: 第二阶段批量详细分析时每批论文数量 (默认8)
         """
-        # 支持ANTHROPIC_AUTH_TOKEN或ANTHROPIC_API_KEY
-        self.api_key = api_key or os.getenv('ANTHROPIC_AUTH_TOKEN') or os.getenv('ANTHROPIC_API_KEY')
-        if not self.api_key:
-            raise ValueError("必须提供ANTHROPIC_API_KEY或ANTHROPIC_AUTH_TOKEN环境变量，或api_key参数")
-        # 去除API key前后的空白字符
-        self.api_key = self.api_key.strip()
+        # 创建LLM客户端
+        self.llm_client = LLMClient(
+            api_type=api_type,
+            api_key=api_key,
+            base_url=base_url,
+            model=model,
+            max_tokens=max_tokens
+        )
 
-        # 获取自定义base_url
-        self.base_url = base_url or os.getenv('ANTHROPIC_BASE_URL')
-        if self.base_url:
-            print(f"使用自定义API端点: {self.base_url}")
-
-        self.model = model
-        self.max_tokens = max_tokens
         self.max_concurrent = max_concurrent
         self.batch_size = batch_size
         self.detail_batch_size = detail_batch_size
 
     async def _call_api_async(self, prompt: str, client: httpx.AsyncClient, max_tokens: int = None) -> str:
         """
-        异步调用Claude API
+        异步调用LLM API
 
         Args:
             prompt: 提示词
             client: httpx异步客户端
-            max_tokens: 最大token数（如果不指定，使用self.max_tokens）
+            max_tokens: 最大token数（如果不指定，使用默认值）
 
         Returns:
             API响应文本
         """
-        endpoint = f"{self.base_url}/v1/messages" if self.base_url else "https://api.anthropic.com/v1/messages"
-        headers = {
-            "x-api-key": self.api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json"
-        }
-        data = {
-            "model": self.model,
-            "max_tokens": max_tokens or self.max_tokens,
-            "messages": [{"role": "user", "content": prompt}]
-        }
-
-        response = await client.post(endpoint, json=data, headers=headers, timeout=60.0)
-
-        if response.status_code == 200:
-            result = response.json()
-            return result['content'][0]['text']
-        else:
-            raise Exception(f"API返回错误: {response.status_code} - {response.text[:200]}")
+        return await self.llm_client.chat_completion(
+            prompt=prompt,
+            client=client,
+            max_tokens=max_tokens,
+            temperature=0.7
+        )
 
     async def _batch_filter_relevance_async(self, papers_batch: List[Dict], research_interests: List[str], client: httpx.AsyncClient, semaphore: asyncio.Semaphore, research_prompt: str = None) -> List[Tuple[int, str, List[str]]]:
         """

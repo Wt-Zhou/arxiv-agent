@@ -4,32 +4,54 @@ Twitter内容分析模块
 """
 import asyncio
 import httpx
-from typing import List, Dict
+from typing import List, Dict, Optional
+from llm_client import LLMClient
 
 
 class TwitterAnalyzer:
     """Twitter内容分析器"""
 
-    def __init__(self, api_key: str, model: str = "claude-sonnet-4-5-20250929",
-                 max_tokens: int = 1024, base_url: str = None, max_concurrent: int = 5):
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "claude-sonnet-4-5-20250929",
+        max_tokens: int = 1024,
+        base_url: Optional[str] = None,
+        api_type: str = "anthropic",
+        max_concurrent: int = 5
+    ):
         """
         初始化分析器
 
         Args:
-            api_key: Anthropic API密钥
-            model: Claude模型
+            api_key: API密钥
+            model: 模型名称
             max_tokens: 最大token数
             base_url: 自定义API端点
+            api_type: API类型 ("anthropic" 或 "openai")
             max_concurrent: 最大并发请求数
         """
-        self.api_key = api_key.strip()
-        self.base_url = base_url
-        self.model = model
-        self.max_tokens = max_tokens
+        self.llm_client = LLMClient(
+            api_type=api_type,
+            api_key=api_key,
+            base_url=base_url,
+            model=model,
+            max_tokens=max_tokens
+        )
         self.max_concurrent = max_concurrent
 
     async def _call_api_async(self, prompt: str, client: httpx.AsyncClient, max_tokens: int = None) -> str:
-        """调用Claude API"""
+        """调用LLM API"""
+        return await self.llm_client.chat_completion(
+            prompt=prompt,
+            client=client,
+            max_tokens=max_tokens,
+            temperature=0.7
+        )
+
+    # 保留旧方法签名以保持兼容性
+    async def _old_call_api_async(self, prompt: str, client: httpx.AsyncClient, max_tokens: int = None) -> str:
+        """调用Claude API（已弃用）"""
         endpoint = f"{self.base_url}/v1/messages" if self.base_url else "https://api.anthropic.com/v1/messages"
         headers = {
             "x-api-key": self.api_key,

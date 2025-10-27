@@ -183,12 +183,15 @@ def main():
             print("=" * 60)
 
             # 获取API配置（优先从config.yaml，然后从.env）
-            api_key = config.get_api_key() or os.getenv('ANTHROPIC_AUTH_TOKEN') or os.getenv('ANTHROPIC_API_KEY')
-            api_base_url = config.get_api_base_url() or os.getenv('ANTHROPIC_BASE_URL')
+            api_key = config.get_api_key()
+            api_base_url = config.get_api_base_url()
+            api_type = config.get_api_type()
 
             if not api_key:
                 print("错误: 未找到API密钥")
-                print("请在config.yaml中设置api_key，或在.env文件中设置ANTHROPIC_AUTH_TOKEN")
+                print("请在config.yaml中设置api_key，或设置环境变量")
+                print("  - Anthropic: ANTHROPIC_API_KEY")
+                print("  - OpenAI兼容: OPENAI_API_KEY 或 API_KEY")
                 return
 
             # 获取并发配置（命令行参数覆盖配置文件）
@@ -196,9 +199,10 @@ def main():
 
             analyzer = LLMAnalyzer(
                 api_key=api_key,
-                model=config.get_claude_model(),
-                max_tokens=config.get_claude_max_tokens(),
+                model=config.get_model_name(),
+                max_tokens=config.get_max_tokens(),
                 base_url=api_base_url,
+                api_type=api_type,
                 max_concurrent=max_concurrent,
                 batch_size=config.get_batch_size(),
                 detail_batch_size=config.get_detail_batch_size()
@@ -219,9 +223,10 @@ def main():
                 print(f"\n分析 {len(all_tweets)} 条推文...")
                 twitter_analyzer = TwitterAnalyzer(
                     api_key=api_key,
-                    model=config.get_claude_model(),
-                    max_tokens=config.get_claude_max_tokens(),
+                    model=config.get_model_name(),
+                    max_tokens=config.get_max_tokens(),
                     base_url=api_base_url,
+                    api_type=api_type,
                     max_concurrent=max_concurrent
                 )
                 analyzed_tweets = asyncio.run(

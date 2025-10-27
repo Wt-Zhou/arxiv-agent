@@ -1,10 +1,6 @@
 # ============================================================
-# ArXiv Agent 配置文件示例
+# ArXiv Agent 配置文件 - DeepSeek 示例
 # ============================================================
-# 使用说明：
-# 1. 复制此文件为 config.yaml
-# 2. 填入你的 API 密钥和邮箱配置
-# 3. 根据需要修改研究方向和数据源配置
 
 # ============================================================
 # 1. 研究方向配置
@@ -58,56 +54,21 @@ sources:
       - Nature Communications
 
 # ============================================================
-# 3. LLM API 配置 - 支持多种模型
+# 3. LLM API 配置 - DeepSeek（便宜且效果好）
 # ============================================================
-# API类型选择：
-#   - anthropic: Anthropic Claude 模型
-#   - openai: OpenAI 兼容 API（支持 DeepSeek、通义千问、智谱GLM等国产模型）
-api_type: anthropic  # 或 openai
+# API类型：anthropic 或 openai
+api_type: openai
 
-# ----- 方案1: 使用 Anthropic Claude（原始配置）-----
-# API端点（使用第三方代理时修改，官方API留空）
-api_base_url: https://your-api-proxy.com/api  # 替换为你的 API 端点，官方 API 留空或设为 https://api.anthropic.com
+# DeepSeek API 配置
+api_base_url: https://api.deepseek.com
+api_key: YOUR_DEEPSEEK_API_KEY  # 在 https://platform.deepseek.com/ 获取
 
-# API密钥（也可以通过环境变量 ANTHROPIC_API_KEY 设置）
-api_key: your-api-key-here  # 替换为你的 API 密钥
-
-# Claude 模型配置
-# 可用模型：claude-sonnet-4-5-20250929 (最强), claude-3-5-haiku-20241022 (快速便宜)
-model: claude-sonnet-4-5-20250929
-max_tokens: 1024
-
-# ----- 方案2: 使用 DeepSeek（推荐，便宜且效果好）-----
-# api_type: openai
-# api_base_url: https://api.deepseek.com
-# api_key: YOUR_DEEPSEEK_API_KEY  # 在 https://platform.deepseek.com/ 获取
-# model: deepseek-chat  # ¥0.27/M输入, ¥1.1/M输出
-# max_tokens: 2048
-
-# ----- 方案3: 使用通义千问 Qwen -----
-# api_type: openai
-# api_base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
-# api_key: YOUR_QWEN_API_KEY  # 在 https://dashscope.console.aliyun.com/ 获取
-# model: qwen-turbo  # ¥0.3/M输入, ¥0.6/M输出
-# max_tokens: 2048
-
-# ----- 方案4: 使用智谱AI ChatGLM -----
-# api_type: openai
-# api_base_url: https://open.bigmodel.cn/api/paas/v4
-# api_key: YOUR_GLM_API_KEY  # 在 https://open.bigmodel.cn/ 获取
-# model: glm-4-flash  # 免费额度
-# max_tokens: 2048
-
-# ----- 方案5: 使用月之暗面 Moonshot -----
-# api_type: openai
-# api_base_url: https://api.moonshot.cn/v1
-# api_key: YOUR_MOONSHOT_API_KEY  # 在 https://platform.moonshot.cn/ 获取
-# model: moonshot-v1-8k
-# max_tokens: 2048
-
-# 向后兼容旧配置（如果存在，会被忽略）
-# claude_model: claude-sonnet-4-5-20250929
-# claude_max_tokens: 1024
+# 模型配置
+# DeepSeek 推荐模型：
+#   - deepseek-chat: 最新通用模型 (¥0.27/M输入, ¥1.1/M输出)
+#   - deepseek-reasoner: 深度思考模型 (¥0.55/M输入, ¥2.19/M输出)
+model: deepseek-chat
+max_tokens: 2048  # DeepSeek 支持更大的 token 数
 
 # ============================================================
 # 4. 筛选与性能配置
@@ -116,9 +77,9 @@ max_tokens: 1024
 min_relevance: medium
 
 # 并发性能配置
-max_concurrent: 5      # 最大并发请求数（建议5-10）
-batch_size: 25         # 第一阶段批量筛选时每批论文数量（建议20-30）
-detail_batch_size: 5   # 第二阶段详细分析时每批论文数量（建议5-10）
+max_concurrent: 10     # DeepSeek 便宜，可以提高并发数（建议10-20）
+batch_size: 30         # 第一阶段批量筛选时每批论文数量
+detail_batch_size: 10  # 第二阶段详细分析时每批论文数量
 
 # ============================================================
 # 5. 输出与通知配置
@@ -127,11 +88,11 @@ output_dir: reports
 
 # 邮件通知配置（可选）
 email:
-  enabled: true
-  smtp_server: smtp.163.com       # SMTP服务器
-  smtp_port: 465                  # SMTP端口
+  enabled: false
+  smtp_server: smtp.163.com
+  smtp_port: 465
   use_ssl: true
-  sender_email: your_email@163.com          # 发送邮箱，替换为你的邮箱
-  sender_password: your_email_auth_code     # 邮箱授权码（不是登录密码），替换为你的授权码
-  receiver_email: receiver@gmail.com        # 接收邮箱，替换为你的接收邮箱
+  sender_email: your_email@163.com
+  sender_password: YOUR_PASSWORD
+  receiver_email: receiver@gmail.com
   subject_prefix: "[ArXiv每日论文]"

@@ -1,126 +1,180 @@
 # ArXiv Agent
 
-自动搜索和分析ArXiv论文的智能Agent，使用Claude AI帮助筛选与你研究方向相关的最新论文。
+🤖 自动搜索和分析学术论文的智能 Agent，使用 Claude AI 帮助筛选与你研究方向相关的最新论文，并自动发送精美的 HTML 邮件报告。
 
-## 功能特性
+## ✨ 功能特性
 
-- **自动搜索**: 从ArXiv获取指定类别的最新论文
-- **智能分析**: 使用Claude AI分析论文与你研究方向的相关性
-- **相关性评级**: 自动将论文分为高、中、低相关性
-- **精美报告**: 生成Markdown格式的论文报告，包含标题、摘要、链接等
-- **灵活配置**: 支持自定义研究方向、ArXiv类别、搜索天数等
-- **定时运行**: 可配合cron等工具实现每日自动运行
+### 📚 多数据源支持
+- **ArXiv 论文**: 从 ArXiv 获取多个类别的最新论文
+- **CNS 期刊**: 支持 Nature、Science、Cell 系列顶级期刊
 
-## 快速开始
+### 🧠 智能分析
+- **AI 驱动**: 使用 Claude AI 分析论文与研究方向的相关性
+- **两阶段筛选**: 快速批量筛选 + 详细深度分析
+- **相关性评级**: 自动分为高、中、低相关性三个等级
+- **并发处理**: 异步并发请求，速度提升 5-10 倍
 
-### 5分钟上手
+### 📧 精美报告
+- **HTML 邮件**: 自动发送格式精美的 HTML 邮件报告
+- **主题总结**: AI 生成研究热点总结
+- **CNS 徽章**: 顶级期刊论文特殊标识
+- **响应式设计**: 支持桌面和移动端阅读
+
+### ☁️ 云端自动化
+- **GitHub Actions**: 每日自动运行，完全免费
+- **零维护**: 无需本地服务器，在云端执行
+- **灵活配置**: 支持手动触发和参数自定义
+
+## 🚀 快速开始
+
+### 方式一：GitHub Actions（推荐，完全免费）
+
+1. **Fork 本仓库**
+
+2. **配置 Secrets**（Settings > Secrets and variables > Actions）
+   - `ANTHROPIC_API_KEY`: Claude API 密钥
+   - `EMAIL_SENDER`: 发送邮箱
+   - `EMAIL_PASSWORD`: 邮箱授权码
+   - `EMAIL_RECEIVER`: 接收邮箱
+
+3. **启用 Actions**
+   - 进入 Actions 页面
+   - 点击 "Run workflow" 测试
+
+完成！每天自动运行并发送邮件报告。📖 [详细指南](GITHUB_ACTIONS_SETUP.md)
+
+---
+
+### 方式二：本地运行
 
 ```bash
-# 1. 安装依赖
+# 1. 克隆仓库
+git clone https://github.com/your-username/arxiv-agent.git
+cd arxiv-agent
+
+# 2. 安装依赖
 pip install -r requirements.txt
 
-# 2. 配置API密钥
-cp .env.example .env
-# 编辑 .env 文件，添加你的 API 密钥
+# 3. 配置文件
+cp config.yaml.example config.yaml
+# 编辑 config.yaml，填入你的 API 密钥和邮箱配置
 
-# 3. 运行
+# 4. 运行
 python main.py
 
-# 4. 查看报告
-cat reports/arxiv_papers_$(date +%Y-%m-%d).md
+# 5. 查看报告
+# - 邮箱中查看 HTML 格式报告
+# - 或查看本地文件: reports/arxiv_papers_YYYY-MM-DD.md
 ```
 
-就这么简单！程序会自动搜索ArXiv、使用Claude AI分析相关性、生成精美的Markdown报告。
+---
 
-### 常用命令
+## ⚙️ 性能优化
 
-```bash
-python main.py --days 3              # 搜索最近3天的论文
-python main.py --min-relevance high  # 只显示高相关性论文
-python main.py --no-analysis         # 不使用AI分析（节省API调用）
-python main.py --max-concurrent 10   # 设置并发数为10（加快分析速度）
-```
+本项目采用**两阶段筛选 + 异步并发**架构，大幅提升分析效率：
 
-### 性能优化
+### 两阶段筛选策略
+1. **快速批量筛选**：每批 25 篇论文，快速过滤无关内容
+2. **详细深度分析**：每批 5-8 篇论文，生成完整分析报告
 
-本项目使用**异步并发 + 连接复用**技术，大幅提升论文分析速度：
-
-- **默认并发数**: 5个同时请求
-- **速度提升**: 相比串行处理快 **5-10倍**
-- **连接复用**: 自动复用TCP连接，减少握手开销
-- **可配置**: 在 `config.yaml` 中设置 `max_concurrent` 或使用 `--max-concurrent` 参数
+### 并发处理优势
+- **默认并发数**: 5 个同时请求
+- **速度提升**: 相比串行处理快 **5-10 倍**
+- **连接复用**: 自动复用 TCP 连接，减少握手开销
 
 **性能对比**:
 - 串行处理: 100篇论文 ≈ 200秒
 - 并发处理(5): 100篇论文 ≈ 40秒 ⚡
 - 并发处理(10): 100篇论文 ≈ 20秒 ⚡⚡
 
-详细架构设计请查看: [ARCHITECTURE.md](ARCHITECTURE.md)
+可在 `config.yaml` 中调整 `max_concurrent`、`batch_size`、`detail_batch_size` 参数。
 
 ---
 
-## 安装
+## 📝 配置说明
 
-### 1. 克隆或下载项目
-
-```bash
-cd /home/zwt/code/arxiv-agent
-```
-
-### 2. 安装依赖
+### 常用命令行参数
 
 ```bash
-pip install -r requirements.txt
+python main.py --days 3              # 搜索最近3天的论文
+python main.py --min-relevance high  # 只显示高相关性论文
+python main.py --no-analysis         # 不使用AI分析（节省API调用）
+python main.py --max-concurrent 10   # 设置并发数为10
 ```
 
-### 3. 配置API密钥
+### 配置文件详解
 
-创建 `.env` 文件:
-
-```bash
-cp .env.example .env
-```
-
-编辑 `.env` 文件，添加你的Anthropic API密钥:
-
-```
-ANTHROPIC_API_KEY=your_actual_api_key_here
-```
-
-获取API密钥: https://console.anthropic.com/
-
-## 配置
-
-编辑 `config.yaml` 文件来自定义设置:
+复制 `config.yaml.example` 为 `config.yaml`，然后编辑：
 
 ```yaml
-# 你的研究方向
+# ============================================================
+# 1. 研究方向配置
+# ============================================================
 research_interests:
   - 自动驾驶
   - 具身智能
   - 强化学习
   - VLM (Vision Language Models)
 
-# ArXiv类别
-arxiv_categories:
-  - cs.RO  # Robotics
-  - cs.CV  # Computer Vision
-  - cs.AI  # Artificial Intelligence
-  - cs.LG  # Machine Learning
-  - cs.CL  # Computation and Language
+research_prompt: |
+  详细描述你的研究兴趣...（可选，用于更精准的相关性分析）
 
-# 每次搜索获取的论文数量上限
-max_results: 100
+# ============================================================
+# 2. 数据源配置
+# ============================================================
+sources:
+  # ArXiv论文源
+  arxiv:
+    enabled: true
+    categories:
+      - cs.RO  # Robotics
+      - cs.CV  # Computer Vision
+      - cs.AI  # Artificial Intelligence
+      - cs.LG  # Machine Learning
+      - cs.CL  # Computation and Language
+    max_results: 50
+    days_back: 3
 
-# 搜索最近几天的论文
-days_back: 1
+  # 学术期刊源（Nature、Science、Cell系列）
+  journals:
+    enabled: true
+    days_back: 7
+    selected_journals:
+      - Nature
+      - Science
+      - Nature Machine Intelligence
+      - Science Robotics
 
-# Claude模型配置
-claude_model: claude-3-5-sonnet-20241022
+# ============================================================
+# 3. Claude API 配置
+# ============================================================
+api_base_url: https://your-api-proxy.com/api  # 使用代理时填写
+api_key: your-api-key-here
+claude_model: claude-sonnet-4-5-20250929
 claude_max_tokens: 1024
 
-# 输出报告路径
+# ============================================================
+# 4. 筛选与性能配置
+# ============================================================
+min_relevance: medium           # 最小相关性：high/medium/low
+max_concurrent: 5               # 最大并发请求数
+batch_size: 25                  # 第一阶段批量筛选每批论文数
+detail_batch_size: 5            # 第二阶段详细分析每批论文数
+
+# ============================================================
+# 5. 输出与通知配置
+# ============================================================
 output_dir: reports
+
+email:
+  enabled: true
+  smtp_server: smtp.163.com
+  smtp_port: 465
+  use_ssl: true
+  sender_email: your_email@163.com
+  sender_password: your_auth_code      # 邮箱授权码
+  receiver_email: receiver@gmail.com
+  subject_prefix: "[ArXiv每日论文]"
 ```
 
 ### ArXiv类别参考
@@ -136,69 +190,55 @@ output_dir: reports
 
 完整列表: https://arxiv.org/category_taxonomy
 
-## 使用方法
+### 邮箱配置指南
 
-### 基本使用
+**163 邮箱**：
+1. 登录网页版 > 设置 > POP3/SMTP/IMAP
+2. 开启 IMAP/SMTP 服务
+3. 获取授权码（不是登录密码）
+4. SMTP: `smtp.163.com:465`
 
-搜索最近一天的论文并分析:
+**QQ 邮箱**：
+1. 设置 > 账户 > POP3/SMTP 服务
+2. 生成授权码
+3. SMTP: `smtp.qq.com:465`
 
-```bash
-python main.py
-```
+**Gmail**：
+1. 开启两步验证
+2. 生成应用专用密码
+3. SMTP: `smtp.gmail.com:465`
 
-### 高级选项
+---
 
-搜索最近3天的论文:
+## 📧 报告示例
 
-```bash
-python main.py --days 3
-```
+### HTML 邮件报告
+程序会自动发送精美的 HTML 格式邮件，包含：
 
-仅搜索，不使用AI分析（节省API调用）:
+**📊 核心发现**
+- 本周研究热点总结（AI 生成）
+- 重点推荐论文（高相关性）
+- 统计数据可视化
 
-```bash
-python main.py --no-analysis
-```
+**📑 详细论文列表**
+- 按相关性分组（高/中/低）
+- CNS 期刊特殊标识徽章
+- 每篇论文包含：
+  - 标题和作者
+  - 发布日期和来源
+  - AI 生成的中文摘要
+  - 相关性分析和推荐理由
+  - 论文链接和 PDF 下载
 
-只显示高相关性的论文:
+**🎨 响应式设计**
+- 桌面端和移动端自适应
+- 卡片式布局，清晰美观
+- 直接点击标题跳转到论文
 
-```bash
-python main.py --min-relevance high
-```
-
-使用自定义配置文件:
-
-```bash
-python main.py --config my_config.yaml
-```
-
-查看所有选项:
-
-```bash
-python main.py --help
-```
-
-## 输出报告
-
-报告会保存在 `reports/` 目录下，文件名格式为 `arxiv_papers_YYYY-MM-DD.md`
-
-报告内容包括:
-- 研究方向列表
-- 统计信息（总论文数、相关性分布）
-- 按相关性分组的论文列表:
-  - **强烈推荐** (高相关性)
-  - **推荐阅读** (中等相关性)
-  - **可能感兴趣** (低相关性)
-
-每篇论文包含:
-- 标题
-- 作者
-- 发布日期
-- 类别
-- 论文链接和PDF链接
-- AI生成的摘要总结
-- 相关领域匹配
-- 推荐理由
+### Markdown 报告
+同时会在 `reports/` 目录生成 Markdown 文件：
+- 文件名格式：`arxiv_papers_YYYY-MM-DD.md`
+- 方便本地查看和版本管理
 
 ## 定时自动运行
 
@@ -265,132 +305,217 @@ crontab -e
    - 参数: `main.py`
    - 起始位置: `/home/zwt/code/arxiv-agent`
 
-## 项目结构
+## 📁 项目结构
 
 ```
 arxiv-agent/
-├── main.py                 # 主程序入口
-├── config.yaml            # 配置文件
-├── requirements.txt       # Python依赖
-├── .env                   # API密钥（需自行创建）
-├── .env.example          # API密钥示例
-├── README.md             # 说明文档
-├── src/                  # 源代码目录
+├── .github/
+│   └── workflows/
+│       └── daily-arxiv.yml         # GitHub Actions 配置
+├── src/                            # 源代码目录
 │   ├── __init__.py
-│   ├── arxiv_searcher.py      # ArXiv搜索模块
-│   ├── llm_analyzer.py        # Claude分析模块
-│   ├── report_generator.py    # 报告生成模块
-│   └── config_loader.py       # 配置加载模块
-└── reports/              # 生成的报告目录
-    └── arxiv_papers_YYYY-MM-DD.md
+│   ├── arxiv_searcher.py          # ArXiv 搜索模块
+│   ├── journal_fetcher.py         # 期刊文章获取模块
+│   ├── llm_analyzer.py            # Claude 分析模块（两阶段）
+│   ├── report_generator.py        # 报告生成模块（MD + HTML）
+│   ├── email_sender.py            # 邮件发送模块
+│   └── config_loader.py           # 配置加载模块
+├── reports/                        # 生成的报告目录
+│   └── arxiv_papers_YYYY-MM-DD.md
+├── main.py                         # 主程序入口
+├── config.yaml.example             # 配置文件模板
+├── requirements.txt                # Python 依赖
+├── README.md                       # 项目说明
+└── GITHUB_ACTIONS_SETUP.md        # GitHub Actions 部署指南
 ```
 
-## 示例输出
+## 💻 运行示例
 
 ```
 ============================================================
-ArXiv Agent - 论文搜索与分析
+ArXiv Agent - 学术论文追踪与分析
 ============================================================
 
-正在加载配置文件: config.yaml
-研究方向: 自动驾驶, 具身智能, 强化学习, VLM (Vision Language Models)
-ArXiv类别: cs.RO, cs.CV, cs.AI, cs.LG, cs.CL
-搜索最近 1 天的论文
-最大结果数: 100
+📖 研究方向: 自动驾驶, 具身智能, 强化学习, VLM
+🔍 数据源: ArXiv, CNS期刊
+⚙️  并发数: 5 | 批次大小: 25, 5
 
 ============================================================
-步骤 1: 搜索ArXiv论文
+1.1 获取 ArXiv 论文
 ============================================================
-搜索类别: cs.RO
-搜索类别: cs.CV
-搜索类别: cs.AI
-搜索类别: cs.LG
-搜索类别: cs.CL
-共找到 87 篇论文
-找到 87 篇论文
+  类别 cs.RO: 找到 18 篇论文
+  类别 cs.CV: 找到 32 篇论文
+  类别 cs.AI: 找到 25 篇论文
+  类别 cs.LG: 找到 28 篇论文
+  类别 cs.CL: 找到 15 篇论文
+✅ ArXiv: 找到 118 篇论文
 
 ============================================================
-步骤 2: 使用Claude分析论文相关性
+1.2 获取 CNS 期刊文章
 ============================================================
-正在分析论文 1/87: Vision-Language Models for Autonomous Driving...
-正在分析论文 2/87: Reinforcement Learning in Robotics...
-...
-
-找到 23 篇相关论文
-
-============================================================
-步骤 3: 生成报告
-============================================================
-报告已生成: reports/arxiv_papers_2025-10-18.md
+  Nature: 找到 2 篇文章
+  Science: 找到 1 篇文章
+  Nature Machine Intelligence: 找到 3 篇文章
+  Science Robotics: 找到 1 篇文章
+✅ 期刊: 找到 7 篇文章
 
 ============================================================
-完成!
+总计: 论文/文章 125 篇
 ============================================================
-报告已保存到: reports/arxiv_papers_2025-10-18.md
-总论文数: 87
-相关论文数: 23
+
+============================================================
+2.1 第一阶段: 批量筛选（快速过滤）
+============================================================
+  批次 1/5: 分析 25 篇论文... ✓ 找到 8 篇相关
+  批次 2/5: 分析 25 篇论文... ✓ 找到 6 篇相关
+  批次 3/5: 分析 25 篇论文... ✓ 找到 5 篇相关
+  批次 4/5: 分析 25 篇论文... ✓ 找到 4 篇相关
+  批次 5/5: 分析 25 篇论文... ✓ 找到 3 篇相关
+
+筛选结果: 26 篇相关论文（高: 12, 中: 14）
+
+============================================================
+2.2 第二阶段: 详细分析（深度解读）
+============================================================
+  批次 1/5: 详细分析 5 篇论文... ✓
+  批次 2/5: 详细分析 5 篇论文... ✓
+  批次 3/5: 详细分析 5 篇论文... ✓
+  批次 4/5: 详细分析 5 篇论文... ✓
+  批次 5/5: 详细分析 6 篇论文... ✓
+
+============================================================
+3. 生成报告
+============================================================
+正在生成 Markdown 报告...
+正在生成 HTML 格式报告...
+正在发送邮件到 receiver@gmail.com...
+
+✅ 报告已生成: reports/arxiv_papers_2025-10-19.md
+✅ 邮件已发送成功
+
+============================================================
+✨ 完成！
+============================================================
+📊 总论文数: 125 篇
+📌 相关论文: 26 篇（高: 12, 中: 14）
+⏱️  用时: 45.3 秒
 ```
 
-## 常见问题
+## ❓ 常见问题
 
-### 1. API密钥错误
+### 1. 邮件发送失败
 
-**问题**: `错误: 未找到ANTHROPIC_API_KEY环境变量`
-
-**解决**: 确保创建了 `.env` 文件并正确设置了API密钥
-
-### 2. 没有找到论文
-
-**问题**: `未找到任何论文`
+**问题**: 邮件无法发送或提示认证失败
 
 **解决**:
+- 确认使用的是**邮箱授权码**，不是登录密码
+- 检查 SMTP 服务器和端口配置是否正确
+- 确认邮箱已开启 SMTP/IMAP 服务
+- 查看错误日志获取详细信息
+
+### 2. GitHub Actions 运行失败
+
+**问题**: Actions 页面显示错误
+
+**解决**:
+- 检查所有必需的 Secrets 是否已配置
+- 查看 Actions 运行日志，定位具体错误
+- 确认 API 密钥有效且有足够额度
+- 参考 [GitHub Actions 部署指南](GITHUB_ACTIONS_SETUP.md)
+
+### 3. 没有找到论文
+
+**问题**: 未找到任何论文或论文数量很少
+
+**解决**:
+- 增加 `days_back` 参数（如 3-7 天）
+- 检查 ArXiv 类别配置是否正确
 - 检查网络连接
-- 尝试增加 `days_back` 参数
-- 检查ArXiv类别是否正确
+- 尝试手动访问 ArXiv 确认可访问性
 
-### 3. API调用过多
+### 4. API 调用成本问题
 
-**问题**: 担心API调用费用
-
-**解决**:
-- 使用 `--no-analysis` 跳过AI分析
-- 减少 `max_results` 数量
-- 增加 `days_back` 但减少运行频率
-
-### 4. 相关性判断不准确
-
-**问题**: AI判断的相关性不符合预期
+**问题**: 担心 API 调用费用过高
 
 **解决**:
-- 在 `config.yaml` 中更具体地描述研究方向
-- 调整 `--min-relevance` 参数
-- 查看完整报告中的推荐理由
+- 两阶段筛选已经优化了 API 使用效率
+- 调整 `max_results` 减少获取的论文数量
+- 增加 `days_back` 但降低运行频率
+- 使用 `min_relevance: high` 只保留高相关论文
+- **成本估算**: 约 $0.14/天 或 $4.2/月（Claude Sonnet 4.5）
 
-## 技术栈
+### 5. 相关性判断不准确
 
-- **Python 3.7+**
-- **arxiv** - ArXiv API客户端
-- **anthropic** - Claude API客户端
+**问题**: AI 判断的相关性不符合预期
+
+**解决**:
+- 在 `config.yaml` 中填写详细的 `research_prompt`
+- 更具体地描述研究方向和关注点
+- 调整 `min_relevance` 阈值
+- 查看报告中的推荐理由，理解 AI 的判断逻辑
+
+### 6. 期刊获取速度慢
+
+**问题**: 获取 CNS 期刊文章时间较长
+
+**解决**:
+- 在 `selected_journals` 中只选择你关注的期刊
+- 减少期刊数量可显著提升速度
+- 期刊更新频率低，可以设置更长的 `days_back`
+
+---
+
+## 🛠️ 技术栈
+
+- **Python 3.10+**
+- **arxiv** - ArXiv API 客户端
+- **anthropic** - Claude API 客户端（支持异步并发）
+- **httpx** - 现代化 HTTP 客户端
 - **PyYAML** - 配置文件解析
-- **python-dotenv** - 环境变量管理
+- **python-dateutil** - 日期处理
+- **feedparser** - RSS/Atom 解析（期刊源）
 
-## 贡献
+---
 
-欢迎提交Issue和Pull Request！
-
-## 许可证
+## 📄 许可证
 
 MIT License
 
-## 作者
+---
 
-Created with Claude Code
+## 👨‍💻 作者
 
-## 更新日志
+Created with ❤️ by [Claude Code](https://claude.com/claude-code)
+
+---
+
+## 📅 更新日志
+
+### v2.0.0 (2025-10-19)
+- ✨ 新增 GitHub Actions 自动化支持
+- ✨ 新增 HTML 邮件报告功能
+- ✨ 新增 CNS 期刊数据源
+- ⚡ 实现两阶段筛选策略，提升效率
+- ⚡ 优化并发处理架构
+- 🎨 精美的响应式 HTML 报告设计
+- 📧 自动邮件发送功能
+- 📝 完善的文档和部署指南
 
 ### v1.0.0 (2025-10-18)
-- 初始版本
-- 支持ArXiv论文搜索
-- 集成Claude AI分析
-- Markdown报告生成
-- 命令行界面
+- 🎉 初始版本
+- 📚 支持 ArXiv 论文搜索
+- 🧠 集成 Claude AI 分析
+- 📄 Markdown 报告生成
+- 💻 命令行界面
+
+---
+
+## 🔗 相关链接
+
+- [GitHub Actions 部署指南](GITHUB_ACTIONS_SETUP.md)
+- [ArXiv 类别列表](https://arxiv.org/category_taxonomy)
+- [Claude API 文档](https://docs.anthropic.com/)
+
+---
+
+**⭐ 如果觉得有用，请给个星标！**
