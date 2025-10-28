@@ -31,8 +31,9 @@ ENV/
 # Configuration with secrets
 config.yaml
 
-# Reports
+# Reports (generated files)
 reports/*.md
+reports/*.html
 !reports/.gitkeep
 
 # IDE

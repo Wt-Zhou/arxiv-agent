@@ -57,57 +57,45 @@ sources:
       - Science Robotics
       - Nature Communications
 
+  # Twitter推文源（Selenium浏览器爬虫，无需API）
+  twitter:
+    enabled: false  # 改为 true 启用（需要安装Chrome浏览器）
+    days_back: 7
+    tweets_per_user: 2
+    following_usernames:
+      # 示例：10个常用学术账号
+      - karpathy        # Andrej Karpathy (Eureka Labs)
+      - OpenAI          # OpenAI官方
+      - ylecun          # Yann LeCun (Meta AI)
+      - DeepMind        # DeepMind官方
+      - chelseabfinn    # Chelsea Finn (Stanford)
+      - danijarh        # Danijar Hafner (世界模型)
+      - _akhaliq        # AK (每日AI论文)
+      - hardmaru        # David Ha (世界模型)
+      - svlevine        # Sergey Levine (UC Berkeley)
+      - NVIDIAAI        # NVIDIA AI官方
+      # 更多50个账号配置见 config.yaml 或 README.md
+
 # ============================================================
-# 3. LLM API 配置 - 支持多种模型
+# 3. OpenAI API 配置
 # ============================================================
-# API类型选择：
-#   - anthropic: Anthropic Claude 模型
-#   - openai: OpenAI 兼容 API（支持 DeepSeek、通义千问、智谱GLM等国产模型）
-api_type: anthropic  # 或 openai
+# API端点
+# - 官方API: https://api.openai.com/v1
+# - 第三方代理（如ChatAnywhere）: https://api.chatanywhere.tech/v1 或 https://api.chatanywhere.org/v1
+base_url: https://api.openai.com/v1
 
-# ----- 方案1: 使用 Anthropic Claude（原始配置）-----
-# API端点（使用第三方代理时修改，官方API留空）
-api_base_url: https://your-api-proxy.com/api  # 替换为你的 API 端点，官方 API 留空或设为 https://api.anthropic.com
+# API密钥（也可以通过环境变量 OPENAI_API_KEY 设置）
+# 获取地址：https://platform.openai.com/account/api-keys
+api_key: your-openai-api-key-here  # 替换为你的 OpenAI API 密钥
 
-# API密钥（也可以通过环境变量 ANTHROPIC_API_KEY 设置）
-api_key: your-api-key-here  # 替换为你的 API 密钥
-
-# Claude 模型配置
-# 可用模型：claude-sonnet-4-5-20250929 (最强), claude-3-5-haiku-20241022 (快速便宜)
-model: claude-sonnet-4-5-20250929
-max_tokens: 1024
-
-# ----- 方案2: 使用 DeepSeek（推荐，便宜且效果好）-----
-# api_type: openai
-# api_base_url: https://api.deepseek.com
-# api_key: YOUR_DEEPSEEK_API_KEY  # 在 https://platform.deepseek.com/ 获取
-# model: deepseek-chat  # ¥0.27/M输入, ¥1.1/M输出
-# max_tokens: 2048
-
-# ----- 方案3: 使用通义千问 Qwen -----
-# api_type: openai
-# api_base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
-# api_key: YOUR_QWEN_API_KEY  # 在 https://dashscope.console.aliyun.com/ 获取
-# model: qwen-turbo  # ¥0.3/M输入, ¥0.6/M输出
-# max_tokens: 2048
-
-# ----- 方案4: 使用智谱AI ChatGLM -----
-# api_type: openai
-# api_base_url: https://open.bigmodel.cn/api/paas/v4
-# api_key: YOUR_GLM_API_KEY  # 在 https://open.bigmodel.cn/ 获取
-# model: glm-4-flash  # 免费额度
-# max_tokens: 2048
-
-# ----- 方案5: 使用月之暗面 Moonshot -----
-# api_type: openai
-# api_base_url: https://api.moonshot.cn/v1
-# api_key: YOUR_MOONSHOT_API_KEY  # 在 https://platform.moonshot.cn/ 获取
-# model: moonshot-v1-8k
-# max_tokens: 2048
-
-# 向后兼容旧配置（如果存在，会被忽略）
-# claude_model: claude-sonnet-4-5-20250929
-# claude_max_tokens: 1024
+# 模型配置
+# 推荐模型：
+#   - gpt-4o: 最强大的多模态模型
+#   - gpt-4-turbo: 性能与成本均衡
+#   - gpt-4o-mini: 快速且经济的模型
+#   - gpt-3.5-turbo: 经济实惠的选择
+model: gpt-4o
+max_tokens: 4096
 
 # ============================================================
 # 4. 筛选与性能配置
@@ -117,7 +105,7 @@ min_relevance: medium
 
 # 并发性能配置
 max_concurrent: 5      # 最大并发请求数（建议5-10）
-batch_size: 25         # 第一阶段批量筛选时每批论文数量（建议20-30）
+batch_size: 15         # 第一阶段批量筛选时每批论文数量（建议15-20，较小值可提高筛选准确性）
 detail_batch_size: 5   # 第二阶段详细分析时每批论文数量（建议5-10）
 
 # ============================================================

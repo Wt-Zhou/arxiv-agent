@@ -1,6 +1,6 @@
 """
 使用LLM分析论文相关性 - 两阶段优化版本
-支持 Anthropic Claude 和 OpenAI 兼容的API（国产模型）
+使用OpenAI官方Python SDK
 """
 import os
 import asyncio
@@ -15,10 +15,9 @@ class LLMAnalyzer:
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "claude-sonnet-4-5-20250929",
-        max_tokens: int = 1024,
+        model: str = "gpt-4o",
+        max_tokens: int = 4096,
         base_url: Optional[str] = None,
-        api_type: str = "anthropic",
         max_concurrent: int = 5,
         batch_size: int = 25,
         detail_batch_size: int = 8
@@ -31,14 +30,12 @@ class LLMAnalyzer:
             model: 使用的模型名称
             max_tokens: 最大token数
             base_url: 自定义API端点 (可选)
-            api_type: API类型 ("anthropic" 或 "openai")
             max_concurrent: 最大并发请求数 (默认5)
             batch_size: 第一阶段批量筛选时每批论文数量 (默认25)
             detail_batch_size: 第二阶段批量详细分析时每批论文数量 (默认8)
         """
         # 创建LLM客户端
         self.llm_client = LLMClient(
-            api_type=api_type,
             api_key=api_key,
             base_url=base_url,
             model=model,
@@ -88,7 +85,7 @@ class LLMAnalyzer:
             for idx, paper in papers_batch:
                 papers_text += f"\n【论文{idx}】\n"
                 papers_text += f"标题: {paper['title']}\n"
-                papers_text += f"摘要: {paper['abstract'][:500]}...\n"  # 限制摘要长度节省tokens
+                papers_text += f"摘要: {paper['abstract'][:800]}...\n"  # 增加摘要长度以获取更多信息
 
             # 根据是否提供了 research_prompt 来构建不同的用户研究方向描述
             if research_prompt:
@@ -98,7 +95,7 @@ class LLMAnalyzer:
                 research_description = f"""用户的研究方向：
 {', '.join(research_interests)}"""
 
-            prompt = f"""你是一个AI研究助手。请快速判断以下论文是否与用户的研究方向相关。
+            prompt = f"""你是一个AI研究助手。请判断以下论文是否与用户的研究方向相关。
 
 {research_description}
 
@@ -108,14 +105,21 @@ class LLMAnalyzer:
 
 【论文X】相关性: 高/中/低/无关  |  匹配领域: XXX, XXX（如果无关则写"无"）
 
-注意：
+相关性判断标准：
+- **高相关**：论文核心内容直接服务于用户的研究方向，方法和应用场景高度契合
+- **中相关**：论文涉及用户关注的技术或方法，虽然应用场景不完全相同，但有借鉴价值或潜在迁移可能
+- **低相关**：论文提到了相关的概念或技术，但不是核心内容，仅有间接联系
+- **无关**：论文内容与用户研究方向完全无关
+
+重要提示：
 - 必须包含【论文X】标记
-- 只判断相关性，不需要翻译或详细分析
-- **特别提示**：来自Nature、Science、Cell等顶级期刊的文章通常代表前沿突破，应倾向于给予更高的相关性评分
-- 准确判断相关性级别"""
+- 采用**宽松的标准**：只要论文涉及相关技术、方法或应用场景，即使不是完全匹配，也应标记为"中相关"或"高相关"
+- 特别关注：机器人、自动驾驶、视觉、语言、多模态、强化学习、世界模型等相关论文
+- 顶级期刊（Nature、Science、Cell等）的创新方法通常有迁移价值，应给予更高评分
+- 不要过于严格，宁可多筛选出一些潜在相关的论文"""
 
             try:
-                response_text = await self._call_api_async(prompt, client, max_tokens=2048)
+                response_text = await self._call_api_async(prompt, client, max_tokens=3072)
 
                 # 解析批量响应
                 results = []

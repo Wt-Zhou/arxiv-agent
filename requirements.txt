@@ -1,6 +1,11 @@
 arxiv==2.1.0
-anthropic>=0.18.0
-httpx>=0.24.0
+openai>=1.0.0
 python-dateutil>=2.8.2
 pyyaml>=6.0
 python-dotenv>=1.0.0
+
+# Twitter功能（三选一）
+tweepy>=4.14.0     # 方案A：Twitter API v2（推荐，需要申请免费API）
+feedparser>=6.0.0  # 方案B：RSS爬虫（备选，Nitter实例可能不稳定）
+selenium>=4.0.0    # 方案C：Selenium浏览器爬虫（较慢但能工作）
+webdriver-manager>=4.0.0  # 自动管理Chrome驱动

@@ -89,50 +89,26 @@ class ConfigLoader:
         # 向后兼容旧配置
         return self.get('days_back', 1)
 
-    def get_api_type(self) -> str:
-        """获取API类型 (anthropic 或 openai)"""
-        return self.get('api_type', 'anthropic')
-
     def get_model_name(self) -> str:
-        """获取模型名称（兼容新旧配置）"""
-        # 优先使用新的 model 配置
-        model = self.get('model', None)
-        if model:
-            return model
-        # 向后兼容旧的 claude_model 配置
-        return self.get('claude_model', 'claude-3-5-sonnet-20241022')
-
-    def get_claude_model(self) -> str:
-        """获取Claude模型名称（已弃用，使用 get_model_name）"""
-        return self.get_model_name()
+        """获取模型名称"""
+        return self.get('model', 'gpt-4o')
 
     def get_max_tokens(self) -> int:
         """获取最大token数"""
-        # 优先使用新的 max_tokens 配置
-        max_tokens = self.get('max_tokens', None)
-        if max_tokens:
-            return max_tokens
-        # 向后兼容旧的 claude_max_tokens 配置
-        return self.get('claude_max_tokens', 1024)
-
-    def get_claude_max_tokens(self) -> int:
-        """获取Claude最大token数（已弃用，使用 get_max_tokens）"""
-        return self.get_max_tokens()
+        return self.get('max_tokens', 4096)
 
     def get_output_dir(self) -> str:
         """获取输出目录"""
         return self.get('output_dir', 'reports')
 
     def get_api_base_url(self) -> str:
-        """获取API端点"""
-        return self.get('api_base_url', None)
+        """获取API端点（默认为OpenAI官方API）"""
+        return self.get('base_url', 'https://api.openai.com/v1')
 
     def get_api_key(self) -> str:
         """获取API密钥（优先从环境变量读取）"""
-        # 优先从环境变量读取（支持多种变量名）
-        api_key = (os.getenv('ANTHROPIC_API_KEY') or
-                   os.getenv('OPENAI_API_KEY') or
-                   os.getenv('API_KEY'))
+        # 优先从环境变量读取
+        api_key = os.getenv('OPENAI_API_KEY') or os.getenv('API_KEY')
         if api_key:
             return api_key.strip()
 
@@ -178,9 +154,9 @@ class ConfigLoader:
     def get_twitter_config(self) -> Dict[str, Any]:
         """获取Twitter配置（支持环境变量覆盖）"""
         # 从新配置结构读取（sources.twitter）
-        source_twitter = self.get('sources', {}).get('twitter', {})
+        source_twitter = self.get('sources', {}).get('twitter', {}) or {}
         # 从顶层twitter配置读取（bearer_token等）
-        top_twitter = self.get('twitter', {})
+        top_twitter = self.get('twitter', {}) or {}
 
         # 合并配置（sources.twitter优先）
         twitter_config = {**top_twitter, **source_twitter}
@@ -212,9 +188,9 @@ class ConfigLoader:
         if self.get('sources', {}).get('journals', {}).get('enabled', False):
             sources.append('journals')
 
-        # # Twitter（已禁用）
-        # if self.get('sources', {}).get('twitter', {}).get('enabled', False):
-        #     sources.append('twitter')
+        # Twitter
+        if self.get('sources', {}).get('twitter', {}).get('enabled', False):
+            sources.append('twitter')
 
         return sources
 

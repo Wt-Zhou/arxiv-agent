@@ -11,11 +11,15 @@ on:
       days_back:
         description: '搜索最近几天的论文'
         required: false
-        default: '3'
+        default: '1'
       max_concurrent:
         description: '最大并发请求数'
         required: false
         default: '5'
+      min_relevance:
+        description: '最小相关性级别 (high/medium/low)'
+        required: false
+        default: 'medium'
 
 jobs:
   analyze-papers:
@@ -36,6 +40,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         sudo apt-get update && sudo apt-get install -y gettext-base
+
+    - name: Install Chrome and ChromeDriver for Twitter scraping
+      run: |
+        # 安装Chrome浏览器
+        wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+        sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+        # ChromeDriver会由webdriver-manager自动管理
 
     - name: Create config from template
       run: |
@@ -81,11 +94,11 @@ jobs:
               - cs.LG  # Machine Learning
               - cs.CL  # Computation and Language
             max_results: 50
-            days_back: ${{ github.event.inputs.days_back || 3 }}
+            days_back: ${{ github.event.inputs.days_back || 1 }}
 
           journals:
             enabled: true
-            days_back: 7
+            days_back: 3
             selected_journals:
               - Nature
               - Science
@@ -93,21 +106,36 @@ jobs:
               - Science Robotics
               - Nature Communications
 
+          twitter:
+            enabled: ${TWITTER_ENABLED}
+            days_back: 7
+            tweets_per_user: 2
+            following_usernames:
+              - karpathy
+              - OpenAI
+              - ylecun
+              - DeepMind
+              - chelseabfinn
+              - danijarh
+              - _akhaliq
+              - hardmaru
+              - svlevine
+              - NVIDIAAI
+
         # ============================================================
-        # 3. LLM API 配置
+        # 3. OpenAI API 配置
         # ============================================================
-        api_type: ${API_TYPE}
-        api_base_url: ${API_BASE_URL}
-        api_key: ${API_KEY}
+        base_url: ${API_BASE_URL}
+        api_key: ${OPENAI_API_KEY}
         model: ${MODEL_NAME}
-        max_tokens: 1024
+        max_tokens: 4096
 
         # ============================================================
         # 4. 筛选与性能配置
         # ============================================================
-        min_relevance: medium
+        min_relevance: ${{ github.event.inputs.min_relevance || 'medium' }}
         max_concurrent: ${{ github.event.inputs.max_concurrent || 5 }}
-        batch_size: 25
+        batch_size: 15
         detail_batch_size: 5
 
         # ============================================================
@@ -129,21 +157,22 @@ jobs:
         # 替换环境变量
         envsubst < config.yaml > config.tmp && mv config.tmp config.yaml
       env:
-        API_TYPE: ${{ secrets.API_TYPE || 'anthropic' }}
-        API_BASE_URL: ${{ secrets.API_BASE_URL }}
-        API_KEY: ${{ secrets.API_KEY || secrets.ANTHROPIC_API_KEY }}
-        MODEL_NAME: ${{ secrets.MODEL_NAME || 'claude-sonnet-4-5-20250929' }}
-        EMAIL_SMTP_SERVER: ${{ secrets.EMAIL_SMTP_SERVER }}
-        EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT }}
+        API_BASE_URL: ${{ secrets.API_BASE_URL || 'https://api.openai.com/v1' }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        MODEL_NAME: ${{ secrets.MODEL_NAME || 'gpt-4o' }}
+        EMAIL_SMTP_SERVER: ${{ secrets.EMAIL_SMTP_SERVER || 'smtp.163.com' }}
+        EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT || '465' }}
         EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
         EMAIL_RECEIVER: ${{ secrets.EMAIL_RECEIVER }}
+        TWITTER_ENABLED: ${{ secrets.TWITTER_ENABLED || 'false' }}
 
     - name: Run ArXiv Agent
       run: |
         python main.py
       env:
         PYTHONPATH: ${{ github.workspace }}/src
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     - name: Upload reports
       if: always()

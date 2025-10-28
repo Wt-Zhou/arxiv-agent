@@ -1,133 +1,85 @@
 """
-通用LLM客户端 - 支持多种API提供商
+通用LLM客户端 - 使用OpenAI官方Python SDK
 """
 import os
-import httpx
-from typing import Optional, Dict, Any
+import asyncio
+from typing import Optional
+from openai import OpenAI
 
 
 class LLMClient:
-    """通用LLM客户端，支持 Anthropic 和 OpenAI 兼容的 API"""
+    """LLM客户端，使用OpenAI官方Python SDK"""
 
     def __init__(
         self,
-        api_type: str = "anthropic",
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
-        model: str = "claude-sonnet-4-5-20250929",
-        max_tokens: int = 1024,
+        model: str = "gpt-4o",
+        max_tokens: int = 4096,
     ):
         """
         初始化LLM客户端
 
         Args:
-            api_type: API类型 ("anthropic" 或 "openai")
             api_key: API密钥
-            base_url: API基础URL（可选）
+            base_url: API基础URL（可选，默认为OpenAI官方API）
             model: 模型名称
             max_tokens: 最大token数
         """
-        self.api_type = api_type.lower()
-        self.api_key = (api_key or os.getenv('API_KEY') or
-                       os.getenv('ANTHROPIC_API_KEY') or
-                       os.getenv('OPENAI_API_KEY')).strip()
+        self.api_key = (api_key or
+                       os.getenv('OPENAI_API_KEY') or
+                       os.getenv('API_KEY'))
+
+        if self.api_key:
+            self.api_key = self.api_key.strip()
+
+        if not self.api_key:
+            raise ValueError("未提供API密钥，请设置 api_key 参数或 OPENAI_API_KEY 环境变量")
+
+        # 设置默认base_url
+        if not base_url:
+            base_url = "https://api.openai.com/v1"
+
         self.base_url = base_url
         self.model = model
         self.max_tokens = max_tokens
 
-        if not self.api_key:
-            raise ValueError(f"未提供API密钥，请设置 api_key 参数或环境变量")
+        # 初始化OpenAI客户端
+        self.client = OpenAI(
+            api_key=self.api_key,
+            base_url=self.base_url
+        )
 
-        # 设置默认base_url
-        if not self.base_url:
-            if self.api_type == "anthropic":
-                self.base_url = "https://api.anthropic.com"
-            elif self.api_type == "openai":
-                self.base_url = "https://api.openai.com/v1"
-
-        print(f"✓ 使用 {self.api_type.upper()} API")
+        print(f"✓ 使用 OpenAI API")
         print(f"  - 模型: {self.model}")
         print(f"  - 端点: {self.base_url}")
 
     async def chat_completion(
         self,
         prompt: str,
-        client: httpx.AsyncClient,
+        client: Optional[object] = None,  # 保留参数以兼容旧代码，但不使用
         max_tokens: Optional[int] = None,
         temperature: float = 0.7,
     ) -> str:
         """
-        调用LLM API进行对话补全
+        调用OpenAI API进行对话补全
 
         Args:
             prompt: 提示词
-            client: httpx异步客户端
+            client: 废弃参数（保留以兼容旧代码）
             max_tokens: 最大token数（可选，覆盖默认值）
             temperature: 温度参数
 
         Returns:
             API响应文本
         """
-        if self.api_type == "anthropic":
-            return await self._call_anthropic(prompt, client, max_tokens, temperature)
-        elif self.api_type == "openai":
-            return await self._call_openai(prompt, client, max_tokens, temperature)
-        else:
-            raise ValueError(f"不支持的API类型: {self.api_type}")
+        # 使用asyncio.to_thread将同步调用转为异步
+        response = await asyncio.to_thread(
+            self.client.chat.completions.create,
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens or self.max_tokens,
+            temperature=temperature
+        )
 
-    async def _call_anthropic(
-        self,
-        prompt: str,
-        client: httpx.AsyncClient,
-        max_tokens: Optional[int],
-        temperature: float,
-    ) -> str:
-        """调用 Anthropic Claude API"""
-        endpoint = f"{self.base_url}/v1/messages"
-        headers = {
-            "x-api-key": self.api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json"
-        }
-        data = {
-            "model": self.model,
-            "max_tokens": max_tokens or self.max_tokens,
-            "temperature": temperature,
-            "messages": [{"role": "user", "content": prompt}]
-        }
-
-        response = await client.post(endpoint, json=data, headers=headers, timeout=60.0)
-
-        if response.status_code == 200:
-            result = response.json()
-            return result['content'][0]['text']
-        else:
-            raise Exception(f"Anthropic API错误: {response.status_code} - {response.text[:200]}")
-
-    async def _call_openai(
-        self,
-        prompt: str,
-        client: httpx.AsyncClient,
-        max_tokens: Optional[int],
-        temperature: float,
-    ) -> str:
-        """调用 OpenAI 兼容 API（支持国产模型）"""
-        endpoint = f"{self.base_url}/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-        data = {
-            "model": self.model,
-            "max_tokens": max_tokens or self.max_tokens,
-            "temperature": temperature,
-            "messages": [{"role": "user", "content": prompt}]
-        }
-
-        response = await client.post(endpoint, json=data, headers=headers, timeout=60.0)
-
-        if response.status_code == 200:
-            result = response.json()
-            return result['choices'][0]['message']['content']
-        else:
-            raise Exception(f"OpenAI API错误: {response.status_code} - {response.text[:200]}")
+        return response.choices[0].message.content

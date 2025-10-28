@@ -1,15 +1,16 @@
 # ArXiv Agent
 
-🤖 自动搜索和分析学术论文的智能 Agent，使用 Claude AI 帮助筛选与你研究方向相关的最新论文，并自动发送精美的 HTML 邮件报告。
+🤖 自动搜索和分析学术论文的智能 Agent，使用 OpenAI GPT 模型帮助筛选与你研究方向相关的最新论文，并自动发送精美的 HTML 邮件报告。
 
 ## ✨ 功能特性
 
 ### 📚 多数据源支持
 - **ArXiv 论文**: 从 ArXiv 获取多个类别的最新论文
 - **CNS 期刊**: 支持 Nature、Science、Cell 系列顶级期刊
+- **Twitter 学术动态**: 自动爬取 50 个顶级学术账号的最新推文（可选）
 
 ### 🧠 智能分析
-- **AI 驱动**: 使用 Claude AI 分析论文与研究方向的相关性
+- **AI 驱动**: 使用 OpenAI GPT 模型分析论文与研究方向的相关性
 - **两阶段筛选**: 快速批量筛选 + 详细深度分析
 - **相关性评级**: 自动分为高、中、低相关性三个等级
 - **并发处理**: 异步并发请求，速度提升 5-10 倍
@@ -32,7 +33,7 @@
 1. **Fork 本仓库**
 
 2. **配置 Secrets**（Settings > Secrets and variables > Actions）
-   - `ANTHROPIC_API_KEY`: Claude API 密钥
+   - `OPENAI_API_KEY`: OpenAI API 密钥
    - `EMAIL_SENDER`: 发送邮箱
    - `EMAIL_PASSWORD`: 邮箱授权码
    - `EMAIL_RECEIVER`: 接收邮箱
@@ -145,13 +146,28 @@ sources:
       - Nature Machine Intelligence
       - Science Robotics
 
+  # Twitter推文源（可选，自动爬取学术账号推文）
+  twitter:
+    enabled: false  # 改为 true 启用
+    days_back: 1
+    tweets_per_user: 3
+    following_usernames:  # 已配置50个顶级学术账号/机构
+      - geoffreyhinton  # Geoffrey Hinton (深度学习三巨头)
+      - ylecun          # Yann LeCun (Meta AI Chief)
+      - karpathy        # Andrej Karpathy (Eureka Labs)
+      - chelseabfinn    # Chelsea Finn (Stanford, Physical Intelligence)
+      - danijarh        # Danijar Hafner (Google DeepMind世界模型)
+      - OpenAI          # OpenAI官方
+      - DeepMind        # DeepMind官方
+      # ... 更多账号见 config.yaml
+
 # ============================================================
-# 3. Claude API 配置
+# 3. OpenAI API 配置
 # ============================================================
-api_base_url: https://your-api-proxy.com/api  # 使用代理时填写
-api_key: your-api-key-here
-claude_model: claude-sonnet-4-5-20250929
-claude_max_tokens: 1024
+base_url: https://api.openai.com/v1  # 官方API，或使用代理
+api_key: your-openai-api-key-here
+model: gpt-4o
+max_tokens: 4096
 
 # ============================================================
 # 4. 筛选与性能配置
@@ -260,7 +276,7 @@ GitHub Actions 可以在云端每天自动运行，无需本地服务器，完�
 2. **配置 GitHub Secrets**
    - 进入仓库 **Settings** > **Secrets and variables** > **Actions**
    - 添加以下 Secrets：
-     - `ANTHROPIC_API_KEY`: 你的 Claude API 密钥
+     - `OPENAI_API_KEY`: 你的 OpenAI API 密钥
      - `EMAIL_SENDER`: 发送邮箱（如 your@163.com）
      - `EMAIL_PASSWORD`: 邮箱授权码（不是登录密码）
      - `EMAIL_RECEIVER`: 接收邮箱
@@ -316,7 +332,7 @@ arxiv-agent/
 │   ├── __init__.py
 │   ├── arxiv_searcher.py          # ArXiv 搜索模块
 │   ├── journal_fetcher.py         # 期刊文章获取模块
-│   ├── llm_analyzer.py            # Claude 分析模块（两阶段）
+│   ├── llm_analyzer.py            # LLM 分析模块（两阶段）
 │   ├── report_generator.py        # 报告生成模块（MD + HTML）
 │   ├── email_sender.py            # 邮件发送模块
 │   └── config_loader.py           # 配置加载模块
@@ -442,7 +458,7 @@ ArXiv Agent - 学术论文追踪与分析
 - 调整 `max_results` 减少获取的论文数量
 - 增加 `days_back` 但降低运行频率
 - 使用 `min_relevance: high` 只保留高相关论文
-- **成本估算**: 约 $0.14/天 或 $4.2/月（Claude Sonnet 4.5）
+- **成本估算**: 约 $0.10-0.30/天 或 $3-9/月（根据使用的GPT模型）
 
 ### 5. 相关性判断不准确
 
@@ -469,8 +485,7 @@ ArXiv Agent - 学术论文追踪与分析
 
 - **Python 3.10+**
 - **arxiv** - ArXiv API 客户端
-- **anthropic** - Claude API 客户端（支持异步并发）
-- **httpx** - 现代化 HTTP 客户端
+- **openai** - OpenAI 官方 Python SDK
 - **PyYAML** - 配置文件解析
 - **python-dateutil** - 日期处理
 - **feedparser** - RSS/Atom 解析（期刊源）
@@ -504,7 +519,7 @@ Created with ❤️ by [Claude Code](https://claude.com/claude-code)
 ### v1.0.0 (2025-10-18)
 - 🎉 初始版本
 - 📚 支持 ArXiv 论文搜索
-- 🧠 集成 Claude AI 分析
+- 🧠 集成 OpenAI GPT 模型分析
 - 📄 Markdown 报告生成
 - 💻 命令行界面
 
@@ -514,7 +529,7 @@ Created with ❤️ by [Claude Code](https://claude.com/claude-code)
 
 - [GitHub Actions 部署指南](GITHUB_ACTIONS_SETUP.md)
 - [ArXiv 类别列表](https://arxiv.org/category_taxonomy)
-- [Claude API 文档](https://docs.anthropic.com/)
+- [OpenAI API 文档](https://platform.openai.com/docs)
 
 ---
 

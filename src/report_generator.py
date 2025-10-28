@@ -492,6 +492,33 @@ class ReportGenerator:
 
         return '\n'.join(lines)
 
+    def _generate_paper_anchor(self, paper: Dict, index: int = 0) -> str:
+        """
+        生成论文的唯一锚点ID
+        使用论文URL的hash或索引，确保唯一性和一致性
+
+        Args:
+            paper: 论文信息
+            index: 论文索引（作为备选）
+
+        Returns:
+            锚点ID字符串
+        """
+        import hashlib
+
+        # 优先使用论文URL生成hash作为锚点
+        if paper.get('url'):
+            url_hash = hashlib.md5(paper['url'].encode()).hexdigest()[:12]
+            return f"paper-{url_hash}"
+        elif paper.get('pdf_url'):
+            url_hash = hashlib.md5(paper['pdf_url'].encode()).hexdigest()[:12]
+            return f"paper-{url_hash}"
+        else:
+            # 使用标题hash
+            title = paper.get('title', f'paper-{index}')
+            title_hash = hashlib.md5(title.encode()).hexdigest()[:12]
+            return f"paper-{title_hash}"
+
     def _generate_html_content(self, papers: List[Dict], research_interests: List[str], date_str: str, tweets: List[Dict] = None) -> str:
         """
         生成HTML格式的报告内容
@@ -507,6 +534,10 @@ class ReportGenerator:
         """
         import html
         tweets = tweets or []
+
+        # 为每篇论文生成唯一锚点ID并存储（强制重新生成确保一致性）
+        for i, paper in enumerate(papers):
+            paper['anchor_id'] = self._generate_paper_anchor(paper, i)
 
         # CSS样式
         css_style = """
@@ -626,6 +657,14 @@ class ReportGenerator:
             }
             .emoji {
                 font-size: 1.2em;
+            }
+            .abstract-content {
+                margin: 10px 0;
+                padding: 10px;
+                background-color: white;
+                border-radius: 3px;
+                line-height: 1.8;
+                color: #333;
             }
         </style>
         """
@@ -793,9 +832,8 @@ class ReportGenerator:
                 title = html.escape(paper.get('title', '未知标题'))
                 source = paper.get('journal') if paper.get('journal') else f"ArXiv {paper.get('primary_category', 'unknown')}"
 
-                # 生成锚点
-                anchor = re.sub(r'[^\w\s-]', '', paper.get('title', '').lower())
-                anchor = re.sub(r'[\s_]+', '-', anchor)[:80]
+                # 使用预先生成的锚点ID
+                anchor = paper.get('anchor_id', 'unknown')
 
                 cns_badge = '<span class="cns-badge">CNS</span>' if is_cns else ''
                 brief = paper.get('summary', paper.get('why_relevant', ''))
@@ -874,11 +912,11 @@ class ReportGenerator:
         """格式化单篇论文为HTML"""
         import html
         import re
+        import urllib.parse
 
-        # 生成锚点
+        # 使用预先生成的锚点ID
         title = paper.get('title', '未知标题')
-        anchor = re.sub(r'[^\w\s-]', '', title.lower())
-        anchor = re.sub(r'[\s_]+', '-', anchor)[:80]
+        anchor = paper.get('anchor_id', 'unknown')
 
         relevance_class = f"{relevance}-relevance"
 
@@ -897,6 +935,10 @@ class ReportGenerator:
                 authors_display += f" 等 ({len(authors)}位作者)"
             parts.append(f"<div class='paper-info'><strong>作者:</strong> {html.escape(authors_display)}</div>")
 
+        # 作者单位（如果有）
+        if paper.get('affiliations'):
+            parts.append(f"<div class='paper-info'><strong>单位:</strong> {html.escape(paper['affiliations'])}</div>")
+
         # 期刊/类别
         if paper.get('journal'):
             journal = paper['journal']
@@ -906,20 +948,46 @@ class ReportGenerator:
         elif paper.get('primary_category'):
             parts.append(f"<div class='paper-info'><strong>类别:</strong> {html.escape(paper['primary_category'])}</div>")
 
-        # 链接
-        if paper.get('url'):
-            parts.append(f"<div class='paper-info'><strong>链接:</strong> <a href='{html.escape(paper['url'])}' target='_blank'>{html.escape(paper['url'])}</a></div>")
-
         # 相关领域
         if paper.get('matched_interests'):
             interests = ', '.join(paper['matched_interests'])
             parts.append(f"<div class='paper-info'><strong>相关领域:</strong> {html.escape(interests)}</div>")
 
-        # 摘要
-        if paper.get('summary'):
-            parts.append(f"<div class='paper-abstract'><strong>核心内容:</strong><br>{html.escape(paper['summary'])}</div>")
-        elif paper.get('abstract_zh'):
-            parts.append(f"<div class='paper-abstract'><strong>摘要:</strong><br>{html.escape(paper['abstract_zh'])}</div>")
+        # 链接
+        if paper.get('url'):
+            parts.append(f"<div class='paper-info'><strong>论文链接:</strong> <a href='{html.escape(paper['url'])}' target='_blank'>{html.escape(paper['url'])}</a></div>")
+        if paper.get('pdf_url'):
+            parts.append(f"<div class='paper-info'><strong>PDF链接:</strong> <a href='{html.escape(paper['pdf_url'])}' target='_blank'>{html.escape(paper['pdf_url'])}</a></div>")
+
+
+        # 生成唯一ID（用于展开/折叠功能）
+        paper_id = anchor
+
+        # 摘要显示格式：核心内容（一句话）+ 完整摘要
+        if paper.get('abstract_zh') or paper.get('summary'):
+            parts.append("<div class='paper-abstract'>")
+
+            # AI生成的核心内容（显示第一句话作为总结）
+            if paper.get('summary'):
+                summary = paper['summary']
+                # 提取第一句话作为核心内容
+                first_sentence = summary.split('。')[0]
+                if not first_sentence.endswith('。'):
+                    first_sentence = first_sentence.split('.')[0]
+                # 限制长度，避免过长
+                if len(first_sentence) > 200:
+                    first_sentence = first_sentence[:200] + '...'
+
+                parts.append(f"<strong>核心内容:</strong>")
+                parts.append(f"<div class='abstract-content'>{html.escape(first_sentence)}...</div>")
+
+            # 中文摘要（显示完整内容）
+            if paper.get('abstract_zh'):
+                abstract_zh = paper['abstract_zh']
+                parts.append(f"<strong>摘要:</strong>")
+                parts.append(f"<div class='abstract-content'>{html.escape(abstract_zh)}</div>")
+
+            parts.append("</div>")
 
         parts.append("</div>")
         return '\n'.join(parts)

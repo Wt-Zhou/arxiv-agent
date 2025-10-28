@@ -1,6 +1,6 @@
 """
 Twitter内容分析模块
-使用LLM分析推文的相关性
+使用LLM分析推文的相关性（使用OpenAI官方Python SDK）
 """
 import asyncio
 import httpx
@@ -14,10 +14,9 @@ class TwitterAnalyzer:
     def __init__(
         self,
         api_key: str,
-        model: str = "claude-sonnet-4-5-20250929",
-        max_tokens: int = 1024,
+        model: str = "gpt-4o",
+        max_tokens: int = 4096,
         base_url: Optional[str] = None,
-        api_type: str = "anthropic",
         max_concurrent: int = 5
     ):
         """
@@ -28,11 +27,9 @@ class TwitterAnalyzer:
             model: 模型名称
             max_tokens: 最大token数
             base_url: 自定义API端点
-            api_type: API类型 ("anthropic" 或 "openai")
             max_concurrent: 最大并发请求数
         """
         self.llm_client = LLMClient(
-            api_type=api_type,
             api_key=api_key,
             base_url=base_url,
             model=model,
@@ -48,29 +45,6 @@ class TwitterAnalyzer:
             max_tokens=max_tokens,
             temperature=0.7
         )
-
-    # 保留旧方法签名以保持兼容性
-    async def _old_call_api_async(self, prompt: str, client: httpx.AsyncClient, max_tokens: int = None) -> str:
-        """调用Claude API（已弃用）"""
-        endpoint = f"{self.base_url}/v1/messages" if self.base_url else "https://api.anthropic.com/v1/messages"
-        headers = {
-            "x-api-key": self.api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json"
-        }
-        data = {
-            "model": self.model,
-            "max_tokens": max_tokens or self.max_tokens,
-            "messages": [{"role": "user", "content": prompt}]
-        }
-
-        response = await client.post(endpoint, json=data, headers=headers, timeout=60.0)
-
-        if response.status_code == 200:
-            result = response.json()
-            return result['content'][0]['text']
-        else:
-            raise Exception(f"API返回错误: {response.status_code} - {response.text[:200]}")
 
     async def analyze_tweets_async(self, tweets: List[Dict], research_interests: List[str] = None,
                                    research_prompt: str = None) -> List[Dict]:

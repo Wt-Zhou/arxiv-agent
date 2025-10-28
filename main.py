@@ -28,7 +28,24 @@ from llm_analyzer import LLMAnalyzer
 from report_generator import ReportGenerator
 from email_sender import EmailSender
 from journal_fetcher import JournalFetcher
-from twitter_api_v2_fetcher import TwitterAPIv2Fetcher
+try:
+    from twitter_api_v2_fetcher import TwitterAPIv2Fetcher
+    TWITTER_API_AVAILABLE = True
+except ImportError:
+    TWITTER_API_AVAILABLE = False
+
+try:
+    from twitter_rss_fetcher import TwitterRSSFetcher
+    TWITTER_RSS_AVAILABLE = True
+except ImportError:
+    TWITTER_RSS_AVAILABLE = False
+
+try:
+    from twitter_selenium_scraper import TwitterSeleniumScraper
+    TWITTER_SELENIUM_AVAILABLE = True
+except ImportError:
+    TWITTER_SELENIUM_AVAILABLE = False
+
 from twitter_analyzer import TwitterAnalyzer
 
 
@@ -116,55 +133,76 @@ def main():
             all_papers.extend(journal_articles)
             print(f"✅ 期刊: 找到 {len(journal_articles)} 篇文章\n")
 
-        # # Twitter 推文（已注释）
-        # if 'twitter' in enabled_sources:
-        #     print(f"{'=' * 60}")
-        #     print("1.3 获取 Twitter 推文")
-        #     print("=" * 60)
-        #
-        #     twitter_config = config.get_twitter_config()
-        #     bearer_token = twitter_config.get('bearer_token') or os.getenv('TWITTER_BEARER_TOKEN')
-        #
-        #     if bearer_token:
-        #         try:
-        #             twitter_fetcher = TwitterAPIv2Fetcher(bearer_token=bearer_token)
-        #
-        #             # 根据配置选择获取模式
-        #             my_username = twitter_config.get('my_username', '').strip()
-        #             following_usernames = twitter_config.get('following_usernames', [])
-        #
-        #             if my_username:
-        #                 # 模式3：从您的关注列表获取
-        #                 print(f"使用模式：从 @{my_username} 的关注列表获取推文")
-        #                 tweets = twitter_fetcher.get_tweets_from_my_following(
-        #                     my_username=my_username,
-        #                     tweets_per_user=twitter_config.get('tweets_per_user', 5),
-        #                     days_back=twitter_config.get('days_back', 7),
-        #                     max_users=twitter_config.get('max_following', 50)
-        #                 )
-        #             elif following_usernames:
-        #                 # 模式2：从指定用户列表获取
-        #                 print(f"使用模式：从指定的 {len(following_usernames)} 个用户获取推文")
-        #                 tweets = twitter_fetcher.get_tweets_from_list(
-        #                     usernames=following_usernames,
-        #                     tweets_per_user=twitter_config.get('tweets_per_user', 5),
-        #                     days_back=twitter_config.get('days_back', 7)
-        #                 )
-        #             else:
-        #                 # 模式1：根据研究兴趣搜索
-        #                 print("使用模式：根据研究兴趣搜索推文")
-        #                 tweets = twitter_fetcher.search_by_research_interests(
-        #                     research_interests=research_interests[:5],  # 限制关键词数量
-        #                     max_results=twitter_config.get('max_tweets', 50),
-        #                     days_back=twitter_config.get('days_back', 7)
-        #                 )
-        #
-        #             all_tweets = tweets
-        #             print(f"✅ Twitter: 找到 {len(tweets)} 条推文\n")
-        #         except Exception as e:
-        #             print(f"⚠️  Twitter 获取失败: {e}\n")
-        #     else:
-        #         print("⚠️  未配置 Twitter Bearer Token，跳过\n")
+        # Twitter 推文（支持API v2、RSS、Selenium三种方式）
+        if 'twitter' in enabled_sources:
+            print(f"{'=' * 60}")
+            print("1.3 获取 Twitter 推文")
+            print("=" * 60)
+
+            twitter_config = config.get_twitter_config()
+            following_usernames = twitter_config.get('following_usernames', [])
+
+            if not following_usernames:
+                print("⚠️  未配置 following_usernames，跳过\n")
+            else:
+                # 优先使用Twitter API v2（如果配置了bearer_token）
+                bearer_token = twitter_config.get('bearer_token') or os.getenv('TWITTER_BEARER_TOKEN')
+
+                if bearer_token and TWITTER_API_AVAILABLE:
+                    print("使用方式：Twitter API v2（官方API）")
+                    try:
+                        twitter_fetcher = TwitterAPIv2Fetcher(bearer_token=bearer_token)
+                        tweets = twitter_fetcher.get_tweets_from_list(
+                            usernames=following_usernames,
+                            tweets_per_user=twitter_config.get('tweets_per_user', 3),
+                            days_back=twitter_config.get('days_back', 1)
+                        )
+                        all_tweets = tweets
+                        print(f"✅ Twitter API: 找到 {len(tweets)} 条推文\n")
+                    except Exception as e:
+                        print(f"⚠️  Twitter API 获取失败: {e}\n")
+
+                elif TWITTER_RSS_AVAILABLE:
+                    print("使用方式：Nitter RSS（免费爬虫）")
+                    print("⚠️  注意：Nitter实例可能不稳定\n")
+                    try:
+                        twitter_fetcher = TwitterRSSFetcher()
+                        tweets = twitter_fetcher.get_tweets_from_list(
+                            usernames=following_usernames,
+                            tweets_per_user=twitter_config.get('tweets_per_user', 3),
+                            days_back=twitter_config.get('days_back', 1)
+                        )
+                        all_tweets = tweets
+                        if tweets:
+                            print(f"✅ Twitter RSS: 找到 {len(tweets)} 条推文\n")
+                        else:
+                            print("⚠️  未获取到推文（Nitter实例可能不可用）\n")
+                    except Exception as e:
+                        print(f"⚠️  Twitter RSS 获取失败: {e}\n")
+
+                elif TWITTER_SELENIUM_AVAILABLE:
+                    print("使用方式：Selenium浏览器爬虫")
+                    print("⚠️  注意：需要Chrome浏览器，速度较慢\n")
+                    try:
+                        twitter_fetcher = TwitterSeleniumScraper(headless=True)
+                        tweets = twitter_fetcher.get_tweets_from_list(
+                            usernames=following_usernames,
+                            tweets_per_user=twitter_config.get('tweets_per_user', 3),
+                            days_back=twitter_config.get('days_back', 1)
+                        )
+                        all_tweets = tweets
+                        print(f"✅ Selenium: 找到 {len(tweets)} 条推文\n")
+                    except Exception as e:
+                        print(f"⚠️  Selenium 获取失败: {e}\n")
+
+                else:
+                    print("⚠️  Twitter功能未配置：")
+                    print("   方案1：配置 Twitter API v2（推荐，免费10,000条/月）")
+                    print("         在 config.yaml 或 .env 中设置 bearer_token")
+                    print("   方案2：安装 feedparser（RSS方式，不稳定）")
+                    print("         运行: pip install feedparser")
+                    print("   方案3：安装 selenium（浏览器爬虫，较慢但可用）")
+                    print("         运行: pip install selenium webdriver-manager\n")
 
         if not all_papers:
             print("未找到任何内容。")
@@ -179,19 +217,16 @@ def main():
         # 2. 分析内容（可选）
         if not args.no_analysis:
             print(f"\n{'=' * 60}")
-            print("步骤 2: 使用Claude分析内容相关性")
+            print("步骤 2: 使用LLM分析内容相关性")
             print("=" * 60)
 
             # 获取API配置（优先从config.yaml，然后从.env）
             api_key = config.get_api_key()
             api_base_url = config.get_api_base_url()
-            api_type = config.get_api_type()
 
             if not api_key:
                 print("错误: 未找到API密钥")
-                print("请在config.yaml中设置api_key，或设置环境变量")
-                print("  - Anthropic: ANTHROPIC_API_KEY")
-                print("  - OpenAI兼容: OPENAI_API_KEY 或 API_KEY")
+                print("请在config.yaml中设置api_key，或设置环境变量OPENAI_API_KEY")
                 return
 
             # 获取并发配置（命令行参数覆盖配置文件）
@@ -202,7 +237,6 @@ def main():
                 model=config.get_model_name(),
                 max_tokens=config.get_max_tokens(),
                 base_url=api_base_url,
-                api_type=api_type,
                 max_concurrent=max_concurrent,
                 batch_size=config.get_batch_size(),
                 detail_batch_size=config.get_detail_batch_size()
@@ -226,7 +260,6 @@ def main():
                     model=config.get_model_name(),
                     max_tokens=config.get_max_tokens(),
                     base_url=api_base_url,
-                    api_type=api_type,
                     max_concurrent=max_concurrent
                 )
                 analyzed_tweets = asyncio.run(
