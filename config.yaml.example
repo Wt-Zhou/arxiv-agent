@@ -60,7 +60,7 @@ sources:
   # Twitter推文源（Selenium浏览器爬虫，无需API）
   twitter:
     enabled: false  # 改为 true 启用（需要安装Chrome浏览器）
-    days_back: 7
+    days_back: 1
     tweets_per_user: 2
     following_usernames:
       # 示例：10个常用学术账号
