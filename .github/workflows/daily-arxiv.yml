@@ -94,7 +94,7 @@ jobs:
               - cs.LG  # Machine Learning
               - cs.CL  # Computation and Language
             max_results: 50
-            days_back: ${{ github.event.inputs.days_back || 1 }}
+            days_back: ${{ github.event.inputs.days_back || 2 }}
 
           journals:
             enabled: true
