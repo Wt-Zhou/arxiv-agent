@@ -75,9 +75,14 @@ class ConfigLoader:
         arxiv_config = self.get('sources', {}).get('arxiv', {})
         max_results = arxiv_config.get('max_results', None)
         if max_results:
-            return max_results
+            try:
+                return int(max_results)
+            except (ValueError, TypeError) as e:
+                print(f"⚠️  Warning: Invalid max_results value '{max_results}' ({type(max_results).__name__}), using default 100")
+                print(f"   Error: {e}")
+                return 100
         # 向后兼容旧配置
-        return self.get('max_results', 100)
+        return int(self.get('max_results', 100))
 
     def get_days_back(self) -> int:
         """获取搜索天数（ArXiv）"""
@@ -85,9 +90,14 @@ class ConfigLoader:
         arxiv_config = self.get('sources', {}).get('arxiv', {})
         days_back = arxiv_config.get('days_back', None)
         if days_back:
-            return days_back
+            try:
+                return int(days_back)
+            except (ValueError, TypeError) as e:
+                print(f"⚠️  Warning: Invalid days_back value '{days_back}' ({type(days_back).__name__}), using default 1")
+                print(f"   Error: {e}")
+                return 1
         # 向后兼容旧配置
-        return self.get('days_back', 1)
+        return int(self.get('days_back', 1))
 
     def get_model_name(self) -> str:
         """获取模型名称"""
@@ -118,7 +128,13 @@ class ConfigLoader:
 
     def get_max_concurrent(self) -> int:
         """获取最大并发请求数"""
-        return self.get('max_concurrent', 5)
+        max_concurrent = self.get('max_concurrent', 5)
+        try:
+            return int(max_concurrent)
+        except (ValueError, TypeError) as e:
+            print(f"⚠️  Warning: Invalid max_concurrent value '{max_concurrent}' ({type(max_concurrent).__name__}), using default 5")
+            print(f"   Error: {e}")
+            return 5
 
     def get_batch_size(self) -> int:
         """获取批量筛选时每批论文数量"""

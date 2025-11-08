@@ -94,7 +94,7 @@ jobs:
               - cs.LG  # Machine Learning
               - cs.CL  # Computation and Language
             max_results: 50
-            days_back: ${{ github.event.inputs.days_back || 2 }}
+            days_back: ${DAYS_BACK}
 
           journals:
             enabled: true
@@ -133,8 +133,8 @@ jobs:
         # ============================================================
         # 4. 筛选与性能配置
         # ============================================================
-        min_relevance: ${{ github.event.inputs.min_relevance || 'medium' }}
-        max_concurrent: ${{ github.event.inputs.max_concurrent || 5 }}
+        min_relevance: ${MIN_RELEVANCE}
+        max_concurrent: ${MAX_CONCURRENT}
         batch_size: 15
         detail_batch_size: 5
 
@@ -156,6 +156,11 @@ jobs:
 
         # 替换环境变量
         envsubst < config.yaml > config.tmp && mv config.tmp config.yaml
+
+        # 调试：显示生成的配置文件
+        echo "=== Generated config.yaml ==="
+        cat config.yaml
+        echo "============================="
       env:
         API_BASE_URL: ${{ secrets.API_BASE_URL || 'https://api.openai.com/v1' }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -166,6 +171,9 @@ jobs:
         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
         EMAIL_RECEIVER: ${{ secrets.EMAIL_RECEIVER }}
         TWITTER_ENABLED: ${{ secrets.TWITTER_ENABLED || 'false' }}
+        DAYS_BACK: ${{ github.event.inputs.days_back || '2' }}
+        MIN_RELEVANCE: ${{ github.event.inputs.min_relevance || 'medium' }}
+        MAX_CONCURRENT: ${{ github.event.inputs.max_concurrent || '5' }}
 
     - name: Run ArXiv Agent
       run: |

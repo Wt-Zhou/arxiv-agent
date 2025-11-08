@@ -31,11 +31,23 @@ class ArxivSearcher:
         Returns:
             论文信息列表
         """
+        # 验证参数类型
+        if not isinstance(days_back, int):
+            print(f"⚠️  Warning: days_back should be int, got {type(days_back).__name__}: '{days_back}'")
+            try:
+                days_back = int(days_back)
+                print(f"   Converted to int: {days_back}")
+            except (ValueError, TypeError) as e:
+                print(f"   ❌ Error: Cannot convert to int: {e}")
+                print(f"   Using default value: 1")
+                days_back = 1
+
         # 计算日期范围（使用UTC时间，确保包含今天和最新论文）
         end_date = datetime.utcnow() + timedelta(days=1)  # 加1天确保包含今天的所有论文
         start_date = end_date - timedelta(days=days_back + 1)
 
         print(f"搜索时间范围: {start_date.strftime('%Y-%m-%d')} 至 {end_date.strftime('%Y-%m-%d')} (UTC)")
+        print(f"参数: days_back={days_back} (type: {type(days_back).__name__})")
 
         papers = []
         total_fetched = 0
@@ -85,6 +97,14 @@ class ArxivSearcher:
                 # ArXiv API返回空页面，说明已经没有更多结果了
                 # 这是正常情况，不需要报错
                 pass
+            except Exception as e:
+                # 捕获其他所有异常并输出详细信息
+                print(f"  ❌ Error searching category {category}: {type(e).__name__}: {e}")
+                import traceback
+                print(f"  Stack trace:")
+                traceback.print_exc()
+                print(f"  Continuing with next category...")
+                continue
 
             print(f"  找到 {category_count} 篇论文")
             total_fetched += category_count
@@ -99,9 +119,19 @@ class ArxivSearcher:
             date_stats[date] = date_stats.get(date, 0) + 1
 
         print(f"\n共找到 {len(unique_papers)} 篇论文")
-        print("按日期分布:")
-        for date in sorted(date_stats.keys(), reverse=True):
-            print(f"  {date}: {date_stats[date]} 篇")
+
+        if len(unique_papers) == 0:
+            print("⚠️  WARNING: ArXiv returned 0 papers!")
+            print("   Possible causes:")
+            print("   1. Configuration error (days_back is a string instead of int)")
+            print("   2. Date range calculation error")
+            print("   3. ArXiv API issue")
+            print("   4. No papers published in the specified date range")
+            print(f"   Search parameters: days_back={days_back}, categories={self.categories}")
+        else:
+            print("按日期分布:")
+            for date in sorted(date_stats.keys(), reverse=True):
+                print(f"  {date}: {date_stats[date]} 篇")
 
         return unique_papers
 
