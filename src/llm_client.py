@@ -44,10 +44,13 @@ class LLMClient:
         self.model = model
         self.max_tokens = max_tokens
 
-        # 初始化OpenAI客户端
+        # 初始化OpenAI客户端（添加超时设置）
+        import httpx
         self.client = OpenAI(
             api_key=self.api_key,
-            base_url=self.base_url
+            base_url=self.base_url,
+            timeout=httpx.Timeout(60.0, connect=10.0),  # 60秒读取超时，10秒连接超时
+            max_retries=2  # 自动重试2次
         )
 
         print(f"✓ 使用 OpenAI API")

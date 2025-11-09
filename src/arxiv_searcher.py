@@ -61,7 +61,7 @@ class ArxivSearcher:
             # 创建搜索客户端（获取更多结果以确保覆盖时间范围）
             search = arxiv.Search(
                 query=query,
-                max_results=self.max_results * 2,  # 获取2倍结果，确保不漏掉论文
+                max_results=self.max_results * 3,  # 获取3倍结果，确保充分覆盖日期范围
                 sort_by=arxiv.SortCriterion.SubmittedDate,
                 sort_order=arxiv.SortOrder.Descending
             )

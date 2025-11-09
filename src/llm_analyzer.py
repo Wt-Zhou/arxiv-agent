@@ -118,55 +118,65 @@ class LLMAnalyzer:
 - 顶级期刊（Nature、Science、Cell等）的创新方法通常有迁移价值，应给予更高评分
 - 不要过于严格，宁可多筛选出一些潜在相关的论文"""
 
-            try:
-                response_text = await self._call_api_async(prompt, client, max_tokens=3072)
+            # 添加重试机制
+            max_retries = 3
+            for retry in range(max_retries):
+                try:
+                    response_text = await self._call_api_async(prompt, client, max_tokens=3072)
 
-                # 解析批量响应
-                results = []
-                lines = response_text.strip().split('\n')
+                    # 解析批量响应
+                    results = []
+                    lines = response_text.strip().split('\n')
 
-                for line in lines:
-                    line = line.strip()
-                    if '【论文' in line and '】' in line:
-                        try:
-                            # 提取论文编号
-                            paper_idx = int(line.split('【论文')[1].split('】')[0])
+                    for line in lines:
+                        line = line.strip()
+                        if '【论文' in line and '】' in line:
+                            try:
+                                # 提取论文编号
+                                paper_idx = int(line.split('【论文')[1].split('】')[0])
 
-                            # 提取相关性
-                            relevance = 'none'
-                            if '相关性' in line or '相关度' in line:
-                                if '高' in line:
-                                    relevance = 'high'
-                                elif '中' in line:
-                                    relevance = 'medium'
-                                elif '低' in line:
-                                    relevance = 'low'
-                                elif '无关' in line:
-                                    relevance = 'none'
+                                # 提取相关性
+                                relevance = 'none'
+                                if '相关性' in line or '相关度' in line:
+                                    if '高' in line:
+                                        relevance = 'high'
+                                    elif '中' in line:
+                                        relevance = 'medium'
+                                    elif '低' in line:
+                                        relevance = 'low'
+                                    elif '无关' in line:
+                                        relevance = 'none'
 
-                            # 提取匹配领域
-                            matched = []
-                            if '匹配领域' in line or '相关领域' in line:
-                                parts = line.split('匹配领域:' if '匹配领域' in line else '相关领域:')
-                                if len(parts) > 1:
-                                    fields_text = parts[1].strip()
-                                    if fields_text and '无' not in fields_text:
-                                        matched = [f.strip() for f in fields_text.replace('、', ',').split(',') if f.strip()]
+                                # 提取匹配领域
+                                matched = []
+                                if '匹配领域' in line or '相关领域' in line:
+                                    parts = line.split('匹配领域:' if '匹配领域' in line else '相关领域:')
+                                    if len(parts) > 1:
+                                        fields_text = parts[1].strip()
+                                        if fields_text and '无' not in fields_text:
+                                            matched = [f.strip() for f in fields_text.replace('、', ',').split(',') if f.strip()]
 
-                            results.append((paper_idx, relevance, matched))
-                        except (ValueError, IndexError) as e:
-                            print(f"  ⚠️  解析论文结果时出错: {line[:50]}... - {e}")
-                            continue
+                                results.append((paper_idx, relevance, matched))
+                            except (ValueError, IndexError) as e:
+                                print(f"  ⚠️  解析论文结果时出错: {line[:50]}... - {e}")
+                                continue
 
-                return results
+                    return results
 
-            except Exception as e:
-                import traceback
-                error_msg = f"{type(e).__name__}: {str(e)}"
-                print(f"  ⚠️  批量筛选时出错: {error_msg}")
-                print(f"  详细错误信息:\n{traceback.format_exc()}")
-                # 返回所有论文标记为unknown
-                return [(idx, 'unknown', []) for idx, _ in papers_batch]
+                except Exception as e:
+                    import traceback
+                    error_msg = f"{type(e).__name__}: {str(e)}"
+                    print(f"  ⚠️  批量筛选时出错（尝试 {retry+1}/{max_retries}）: {error_msg}")
+
+                    if retry < max_retries - 1:
+                        wait_time = (retry + 1) * 2  # 指数退避
+                        print(f"  等待 {wait_time} 秒后重试...")
+                        await asyncio.sleep(wait_time)
+                    else:
+                        print(f"  详细错误信息:\n{traceback.format_exc()}")
+                        # 最后一次失败，返回所有论文标记为low而非unknown，避免丢失
+                        print(f"  ⚠️  {len(papers_batch)}篇论文批量筛选失败，标记为低相关性以保留")
+                        return [(idx, 'low', []) for idx, _ in papers_batch]
 
     async def _batch_analyze_detailed_async(self, papers_batch: List[Tuple[int, Dict]], client: httpx.AsyncClient, semaphore: asyncio.Semaphore) -> List[Tuple[int, Dict]]:
         """
@@ -211,8 +221,11 @@ class LLMAnalyzer:
 - 中文翻译要完整、准确、流畅
 - 核心内容要突出创新点"""
 
-            try:
-                response_text = await self._call_api_async(prompt, client, max_tokens=4096)
+            # 添加重试机制
+            max_retries = 3
+            for retry in range(max_retries):
+                try:
+                    response_text = await self._call_api_async(prompt, client, max_tokens=4096)
 
                 # 解析批量响应
                 results = []
@@ -309,15 +322,22 @@ class LLMAnalyzer:
                             current_data['affiliations'] = content_text
                     results.append((current_paper_idx, current_data))
 
-                return results
+                    return results
 
-            except Exception as e:
-                import traceback
-                error_msg = f"{type(e).__name__}: {str(e)}"
-                print(f"  ⚠️  批量详细分析时出错: {error_msg}")
-                print(f"  详细错误信息:\n{traceback.format_exc()}")
-                # 返回所有论文的空结果
-                return [(idx, {'affiliations': None, 'abstract_zh': '', 'summary': '', 'reason': f'分析失败: {error_msg}'}) for idx, _ in papers_batch]
+                except Exception as e:
+                    import traceback
+                    error_msg = f"{type(e).__name__}: {str(e)}"
+                    print(f"  ⚠️  批量详细分析时出错（尝试 {retry+1}/{max_retries}）: {error_msg}")
+
+                    if retry < max_retries - 1:
+                        wait_time = (retry + 1) * 2  # 指数退避
+                        print(f"  等待 {wait_time} 秒后重试...")
+                        await asyncio.sleep(wait_time)
+                    else:
+                        print(f"  详细错误信息:\n{traceback.format_exc()}")
+                        # 返回基本结果，保留论文
+                        print(f"  ⚠️  {len(papers_batch)}篇论文详细分析失败，返回基本信息")
+                        return [(idx, {'affiliations': None, 'abstract_zh': '', 'summary': '分析失败但论文已保留', 'reason': f'分析失败: {error_msg}'}) for idx, _ in papers_batch]
 
 
     async def two_stage_analyze_papers_async(self, papers: List[Dict], research_interests: List[str], research_prompt: str = None) -> List[Dict]:

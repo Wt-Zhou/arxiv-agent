@@ -1,9 +1,9 @@
 name: Daily ArXiv Paper Analysis
 
 on:
-  # 每天UTC时间 00:00 运行（北京时间 08:00）
+  # 每天UTC时间 02:00 运行（北京时间 10:00）
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 2 * * *'
 
   # 允许手动触发
   workflow_dispatch:
@@ -11,7 +11,7 @@ on:
       days_back:
         description: '搜索最近几天的论文'
         required: false
-        default: '1'
+        default: '3'
       max_concurrent:
         description: '最大并发请求数'
         required: false
@@ -93,7 +93,7 @@ jobs:
               - cs.AI  # Artificial Intelligence
               - cs.LG  # Machine Learning
               - cs.CL  # Computation and Language
-            max_results: 50
+            max_results: 100
             days_back: ${DAYS_BACK}
 
           journals:
@@ -164,14 +164,14 @@ jobs:
       env:
         API_BASE_URL: ${{ secrets.API_BASE_URL || 'https://api.openai.com/v1' }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        MODEL_NAME: ${{ secrets.MODEL_NAME || 'gpt-4o' }}
+        MODEL_NAME: ${{ secrets.MODEL_NAME || 'gpt-5-mini' }}
         EMAIL_SMTP_SERVER: ${{ secrets.EMAIL_SMTP_SERVER || 'smtp.163.com' }}
         EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT || '465' }}
         EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
         EMAIL_RECEIVER: ${{ secrets.EMAIL_RECEIVER }}
         TWITTER_ENABLED: ${{ secrets.TWITTER_ENABLED || 'false' }}
-        DAYS_BACK: ${{ github.event.inputs.days_back || '2' }}
+        DAYS_BACK: ${{ github.event.inputs.days_back || '3' }}
         MIN_RELEVANCE: ${{ github.event.inputs.min_relevance || 'medium' }}
         MAX_CONCURRENT: ${{ github.event.inputs.max_concurrent || '5' }}
 

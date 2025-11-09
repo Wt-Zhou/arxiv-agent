@@ -84,7 +84,18 @@ def main():
         output_dir = config.get_output_dir()
         min_relevance_config = config.get_min_relevance()
 
-        print(f"研究方向: {', '.join(research_interests)}")
+        # 添加详细的参数日志
+        print(f"\n配置参数：")
+        print(f"  - max_results: {max_results} (每个类别)")
+        print(f"  - days_back: {days_back} (搜索天数)")
+        print(f"  - model: {config.get_model_name()}")
+        print(f"  - base_url: {config.get_api_base_url()}")
+        print(f"  - max_concurrent: {config.get_max_concurrent()}")
+        print(f"  - batch_size: {config.get_batch_size()}")
+        print(f"  - detail_batch_size: {config.get_detail_batch_size()}")
+        print(f"  - min_relevance: {args.min_relevance or min_relevance_config}")
+
+        print(f"\n研究方向: {', '.join(research_interests)}")
         if research_prompt:
             print(f"研究兴趣描述: 已设置（使用自定义描述进行相关性分析）")
         print(f"ArXiv类别: {', '.join(arxiv_categories)}")
@@ -116,7 +127,14 @@ def main():
             )
             papers = searcher.search_recent_papers(days_back=days_back)
             all_papers.extend(papers)
-            print(f"✅ ArXiv: 找到 {len(papers)} 篇论文\n")
+            print(f"✅ ArXiv: 找到 {len(papers)} 篇论文")
+            if len(papers) == 0:
+                print("  ⚠️  警告：ArXiv 搜索返回 0 篇论文！")
+                print("  可能的原因：")
+                print("  1. 配置问题（参数类型错误）")
+                print("  2. 日期范围问题")
+                print("  3. ArXiv API 访问问题")
+            print()
 
         # CNS 期刊文章
         if 'journals' in enabled_sources:
