@@ -227,100 +227,100 @@ class LLMAnalyzer:
                 try:
                     response_text = await self._call_api_async(prompt, client, max_tokens=4096)
 
-                # 解析批量响应
-                results = []
-                current_paper_idx = None
-                current_data = {'affiliations': None, 'abstract_zh': '', 'summary': ''}
-                current_section = None
-                current_content = []
+                    # 解析批量响应
+                    results = []
+                    current_paper_idx = None
+                    current_data = {'affiliations': None, 'abstract_zh': '', 'summary': ''}
+                    current_section = None
+                    current_content = []
 
-                lines = response_text.strip().split('\n')
+                    lines = response_text.strip().split('\n')
 
-                for line in lines:
-                    line_stripped = line.strip()
+                    for line in lines:
+                        line_stripped = line.strip()
 
-                    # 检测新论文开始
-                    if '【论文' in line_stripped and '】' in line_stripped:
-                        # 保存上一篇论文的数据
-                        if current_paper_idx is not None:
-                            if current_section and current_content:
-                                content_text = '\n'.join(current_content).strip()
-                                if current_section == 'abstract_zh':
-                                    current_data['abstract_zh'] = content_text
-                                elif current_section == 'summary':
-                                    current_data['summary'] = content_text
-                                elif current_section == 'affiliations' and '未在摘要中说明' not in content_text:
-                                    current_data['affiliations'] = content_text
-                            results.append((current_paper_idx, current_data.copy()))
+                        # 检测新论文开始
+                        if '【论文' in line_stripped and '】' in line_stripped:
+                            # 保存上一篇论文的数据
+                            if current_paper_idx is not None:
+                                if current_section and current_content:
+                                    content_text = '\n'.join(current_content).strip()
+                                    if current_section == 'abstract_zh':
+                                        current_data['abstract_zh'] = content_text
+                                    elif current_section == 'summary':
+                                        current_data['summary'] = content_text
+                                    elif current_section == 'affiliations' and '未在摘要中说明' not in content_text:
+                                        current_data['affiliations'] = content_text
+                                results.append((current_paper_idx, current_data.copy()))
 
-                        # 开始新论文
-                        try:
-                            current_paper_idx = int(line_stripped.split('【论文')[1].split('】')[0])
-                            current_data = {'affiliations': None, 'abstract_zh': '', 'summary': ''}
-                            current_section = None
-                            current_content = []
-                        except (ValueError, IndexError):
-                            continue
+                            # 开始新论文
+                            try:
+                                current_paper_idx = int(line_stripped.split('【论文')[1].split('】')[0])
+                                current_data = {'affiliations': None, 'abstract_zh': '', 'summary': ''}
+                                current_section = None
+                                current_content = []
+                            except (ValueError, IndexError):
+                                continue
 
-                    # 检测章节
-                    elif current_paper_idx is not None:
-                        if '作者单位' in line_stripped or ('单位' in line_stripped and ':' in line_stripped):
-                            if current_section and current_content:
-                                content_text = '\n'.join(current_content).strip()
-                                if current_section == 'abstract_zh':
-                                    current_data['abstract_zh'] = content_text
-                                elif current_section == 'summary':
-                                    current_data['summary'] = content_text
-                            current_section = 'affiliations'
-                            current_content = []
-                            if '：' in line_stripped or ':' in line_stripped:
-                                separator = '：' if '：' in line_stripped else ':'
-                                content = line_stripped.split(separator, 1)[-1].strip()
-                                if content and '未在摘要中说明' not in content:
-                                    current_data['affiliations'] = content
+                        # 检测章节
+                        elif current_paper_idx is not None:
+                            if '作者单位' in line_stripped or ('单位' in line_stripped and ':' in line_stripped):
+                                if current_section and current_content:
+                                    content_text = '\n'.join(current_content).strip()
+                                    if current_section == 'abstract_zh':
+                                        current_data['abstract_zh'] = content_text
+                                    elif current_section == 'summary':
+                                        current_data['summary'] = content_text
+                                current_section = 'affiliations'
+                                current_content = []
+                                if '：' in line_stripped or ':' in line_stripped:
+                                    separator = '：' if '：' in line_stripped else ':'
+                                    content = line_stripped.split(separator, 1)[-1].strip()
+                                    if content and '未在摘要中说明' not in content:
+                                        current_data['affiliations'] = content
 
-                        elif '摘要中文翻译' in line_stripped or ('摘要' in line_stripped and '翻译' in line_stripped):
-                            if current_section and current_content:
-                                content_text = '\n'.join(current_content).strip()
-                                if current_section == 'summary':
-                                    current_data['summary'] = content_text
-                                elif current_section == 'affiliations' and '未在摘要中说明' not in content_text:
-                                    current_data['affiliations'] = content_text
-                            current_section = 'abstract_zh'
-                            current_content = []
-                            if '：' in line_stripped:
-                                content = line_stripped.split('：', 1)[-1].strip()
-                                if content:
-                                    current_content.append(content)
+                            elif '摘要中文翻译' in line_stripped or ('摘要' in line_stripped and '翻译' in line_stripped):
+                                if current_section and current_content:
+                                    content_text = '\n'.join(current_content).strip()
+                                    if current_section == 'summary':
+                                        current_data['summary'] = content_text
+                                    elif current_section == 'affiliations' and '未在摘要中说明' not in content_text:
+                                        current_data['affiliations'] = content_text
+                                current_section = 'abstract_zh'
+                                current_content = []
+                                if '：' in line_stripped:
+                                    content = line_stripped.split('：', 1)[-1].strip()
+                                    if content:
+                                        current_content.append(content)
 
-                        elif '核心内容' in line_stripped or ('核心' in line_stripped and '创新' in line_stripped):
-                            if current_section and current_content:
-                                content_text = '\n'.join(current_content).strip()
-                                if current_section == 'abstract_zh':
-                                    current_data['abstract_zh'] = content_text
-                                elif current_section == 'affiliations' and '未在摘要中说明' not in content_text:
-                                    current_data['affiliations'] = content_text
-                            current_section = 'summary'
-                            current_content = []
-                            if '：' in line_stripped:
-                                content = line_stripped.split('：', 1)[-1].strip()
-                                if content:
-                                    current_content.append(content)
+                            elif '核心内容' in line_stripped or ('核心' in line_stripped and '创新' in line_stripped):
+                                if current_section and current_content:
+                                    content_text = '\n'.join(current_content).strip()
+                                    if current_section == 'abstract_zh':
+                                        current_data['abstract_zh'] = content_text
+                                    elif current_section == 'affiliations' and '未在摘要中说明' not in content_text:
+                                        current_data['affiliations'] = content_text
+                                current_section = 'summary'
+                                current_content = []
+                                if '：' in line_stripped:
+                                    content = line_stripped.split('：', 1)[-1].strip()
+                                    if content:
+                                        current_content.append(content)
 
-                        elif current_section and line_stripped and not line_stripped.startswith(('1.', '2.', '3.', '注意', '=')):
-                            current_content.append(line_stripped)
+                            elif current_section and line_stripped and not line_stripped.startswith(('1.', '2.', '3.', '注意', '=')):
+                                current_content.append(line_stripped)
 
-                # 保存最后一篇论文
-                if current_paper_idx is not None:
-                    if current_section and current_content:
-                        content_text = '\n'.join(current_content).strip()
-                        if current_section == 'abstract_zh':
-                            current_data['abstract_zh'] = content_text
-                        elif current_section == 'summary':
-                            current_data['summary'] = content_text
-                        elif current_section == 'affiliations' and '未在摘要中说明' not in content_text:
-                            current_data['affiliations'] = content_text
-                    results.append((current_paper_idx, current_data))
+                    # 保存最后一篇论文
+                    if current_paper_idx is not None:
+                        if current_section and current_content:
+                            content_text = '\n'.join(current_content).strip()
+                            if current_section == 'abstract_zh':
+                                current_data['abstract_zh'] = content_text
+                            elif current_section == 'summary':
+                                current_data['summary'] = content_text
+                            elif current_section == 'affiliations' and '未在摘要中说明' not in content_text:
+                                current_data['affiliations'] = content_text
+                        results.append((current_paper_idx, current_data))
 
                     return results
 
