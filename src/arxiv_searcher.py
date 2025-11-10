@@ -45,11 +45,19 @@ class ArxivSearcher:
         # 计算日期范围（使用UTC时间，确保包含今天和最新论文）
         from datetime import timezone
         now = datetime.now(timezone.utc)  # 使用带时区的当前时间
-        end_date = now + timedelta(days=1)  # 加1天确保包含未来提交的论文
-        start_date = now - timedelta(days=days_back)  # 往前推 days_back 天
+
+        # 添加12小时缓冲以捕获前一天晚上发布的论文（ArXiv通常在UTC晚上更新）
+        # 使用日期级别的比较避免时间点差异
+        buffer_hours = 12
+        start_date = (now - timedelta(days=days_back, hours=buffer_hours)).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        end_date = (now + timedelta(days=1)).replace(
+            hour=23, minute=59, second=59, microsecond=999999
+        )
 
         print(f"搜索时间范围: {start_date.strftime('%Y-%m-%d %H:%M')} 至 {end_date.strftime('%Y-%m-%d %H:%M')} (UTC)")
-        print(f"参数: days_back={days_back} (type: {type(days_back).__name__})")
+        print(f"参数: days_back={days_back}, 缓冲时间: {buffer_hours}小时")
         print(f"当前时间: {now.strftime('%Y-%m-%d %H:%M:%S')} UTC")
 
         papers = []
@@ -63,10 +71,11 @@ class ArxivSearcher:
             print(f"  查询: {query}, 请求数量: {self.max_results * 3}")
 
             # 创建搜索客户端（获取更多结果以确保覆盖时间范围）
+            # 使用 LastUpdatedDate 排序，确保最新更新的论文排在前面（包括新提交和已有论文的更新）
             search = arxiv.Search(
                 query=query,
                 max_results=self.max_results * 3,  # 获取3倍结果，确保充分覆盖日期范围
-                sort_by=arxiv.SortCriterion.SubmittedDate,
+                sort_by=arxiv.SortCriterion.LastUpdatedDate,  # 使用更新日期排序（不是提交日期）
                 sort_order=arxiv.SortOrder.Descending
             )
 
@@ -74,19 +83,19 @@ class ArxivSearcher:
             category_count = 0
             fetched_count = 0
             skipped_count = 0
+            consecutive_skips = 0  # 连续跳过计数器
             try:
                 for result in search.results():
                     fetched_count += 1
 
-                    # 检查提交日期（使用published或updated中较新的）
-                    submitted_date = result.published
+                    # 使用更新日期进行过滤（与排序方式一致）
                     updated_date = result.updated if hasattr(result, 'updated') else result.published
-                    effective_date = max(submitted_date, updated_date)
+                    effective_date = updated_date  # 统一使用更新日期
 
                     # 调试：输出前几篇论文的日期信息
                     if fetched_count <= 3:
                         print(f"  [调试] 论文 {fetched_count}: {result.title[:50]}...")
-                        print(f"         发布日期: {submitted_date}, 更新日期: {updated_date}")
+                        print(f"         更新日期: {updated_date}")
                         print(f"         有效日期: {effective_date}, 起始日期: {start_date}")
 
                     # 只保留指定日期范围内的论文（两者都是带时区的）
@@ -104,11 +113,23 @@ class ArxivSearcher:
                         }
                         papers.append(paper_info)
                         category_count += 1
+                        consecutive_skips = 0  # 重置连续跳过计数器
                     else:
                         skipped_count += 1
-                        # 由于是按时间降序排列，如果遇到超出范围的论文就可以停止
+                        consecutive_skips += 1  # 增加连续跳过计数器
+
+                        # 调试输出
                         if fetched_count <= 5:
                             print(f"  [调试] 跳过：论文日期 {effective_date} < 起始日期 {start_date}")
+
+                        # 只有连续跳过50篇后才停止（防止因为一篇旧论文就中断）
+                        if consecutive_skips >= 50:
+                            print(f"  [调试] 连续跳过 {consecutive_skips} 篇论文，停止搜索该类别")
+                            break
+
+                    # 安全限制：获取到max_results*3篇后停止
+                    if fetched_count >= self.max_results * 3:
+                        print(f"  [调试] 已获取 {fetched_count} 篇，达到上限，停止搜索")
                         break
             except arxiv.UnexpectedEmptyPageError as e:
                 # ArXiv API返回空页面，说明已经没有更多结果了
@@ -123,7 +144,8 @@ class ArxivSearcher:
                 print(f"  Continuing with next category...")
                 continue
 
-            print(f"  找到 {category_count} 篇论文 (从 {fetched_count} 篇中筛选)")
+            match_rate = (category_count / fetched_count * 100) if fetched_count > 0 else 0
+            print(f"  找到 {category_count} 篇论文 (从 {fetched_count} 篇中筛选，匹配率 {match_rate:.1f}%)")
             total_fetched += category_count
 
         # 去重（有些论文可能属于多个类别）
