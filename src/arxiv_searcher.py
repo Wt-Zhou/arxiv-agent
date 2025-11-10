@@ -43,11 +43,14 @@ class ArxivSearcher:
                 days_back = 1
 
         # 计算日期范围（使用UTC时间，确保包含今天和最新论文）
-        end_date = datetime.utcnow() + timedelta(days=1)  # 加1天确保包含今天的所有论文
-        start_date = end_date - timedelta(days=days_back + 1)
+        from datetime import timezone
+        now = datetime.now(timezone.utc)  # 使用带时区的当前时间
+        end_date = now + timedelta(days=1)  # 加1天确保包含未来提交的论文
+        start_date = now - timedelta(days=days_back)  # 往前推 days_back 天
 
-        print(f"搜索时间范围: {start_date.strftime('%Y-%m-%d')} 至 {end_date.strftime('%Y-%m-%d')} (UTC)")
+        print(f"搜索时间范围: {start_date.strftime('%Y-%m-%d %H:%M')} 至 {end_date.strftime('%Y-%m-%d %H:%M')} (UTC)")
         print(f"参数: days_back={days_back} (type: {type(days_back).__name__})")
+        print(f"当前时间: {now.strftime('%Y-%m-%d %H:%M:%S')} UTC")
 
         papers = []
         total_fetched = 0
@@ -86,8 +89,8 @@ class ArxivSearcher:
                         print(f"         发布日期: {submitted_date}, 更新日期: {updated_date}")
                         print(f"         有效日期: {effective_date}, 起始日期: {start_date}")
 
-                    # 只保留指定日期范围内的论文
-                    if effective_date >= start_date.replace(tzinfo=effective_date.tzinfo):
+                    # 只保留指定日期范围内的论文（两者都是带时区的）
+                    if effective_date >= start_date:
                         paper_info = {
                             'title': result.title,
                             'authors': [author.name for author in result.authors],
