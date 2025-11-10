@@ -57,6 +57,7 @@ class ArxivSearcher:
 
             # 构建查询
             query = f"cat:{category}"
+            print(f"  查询: {query}, 请求数量: {self.max_results * 3}")
 
             # 创建搜索客户端（获取更多结果以确保覆盖时间范围）
             search = arxiv.Search(
@@ -68,12 +69,22 @@ class ArxivSearcher:
 
             # 执行搜索
             category_count = 0
+            fetched_count = 0
+            skipped_count = 0
             try:
                 for result in search.results():
+                    fetched_count += 1
+
                     # 检查提交日期（使用published或updated中较新的）
                     submitted_date = result.published
                     updated_date = result.updated if hasattr(result, 'updated') else result.published
                     effective_date = max(submitted_date, updated_date)
+
+                    # 调试：输出前几篇论文的日期信息
+                    if fetched_count <= 3:
+                        print(f"  [调试] 论文 {fetched_count}: {result.title[:50]}...")
+                        print(f"         发布日期: {submitted_date}, 更新日期: {updated_date}")
+                        print(f"         有效日期: {effective_date}, 起始日期: {start_date}")
 
                     # 只保留指定日期范围内的论文
                     if effective_date >= start_date.replace(tzinfo=effective_date.tzinfo):
@@ -91,12 +102,15 @@ class ArxivSearcher:
                         papers.append(paper_info)
                         category_count += 1
                     else:
+                        skipped_count += 1
                         # 由于是按时间降序排列，如果遇到超出范围的论文就可以停止
+                        if fetched_count <= 5:
+                            print(f"  [调试] 跳过：论文日期 {effective_date} < 起始日期 {start_date}")
                         break
-            except arxiv.UnexpectedEmptyPageError:
+            except arxiv.UnexpectedEmptyPageError as e:
                 # ArXiv API返回空页面，说明已经没有更多结果了
-                # 这是正常情况，不需要报错
-                pass
+                print(f"  [调试] ArXiv返回空页面：{e}")
+                print(f"  [调试] 已获取 {fetched_count} 篇，匹配 {category_count} 篇，跳过 {skipped_count} 篇")
             except Exception as e:
                 # 捕获其他所有异常并输出详细信息
                 print(f"  ❌ Error searching category {category}: {type(e).__name__}: {e}")
@@ -106,7 +120,7 @@ class ArxivSearcher:
                 print(f"  Continuing with next category...")
                 continue
 
-            print(f"  找到 {category_count} 篇论文")
+            print(f"  找到 {category_count} 篇论文 (从 {fetched_count} 篇中筛选)")
             total_fetched += category_count
 
         # 去重（有些论文可能属于多个类别）
