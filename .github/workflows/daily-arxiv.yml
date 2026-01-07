@@ -164,7 +164,7 @@ jobs:
         echo "============================="
       env:
         API_TYPE: ${{ secrets.API_TYPE || 'anthropic' }}
-        API_BASE_URL: ${{ secrets.API_BASE_URL }}
+        API_BASE_URL: ${{ secrets.API_BASE_URL || '' }}
         API_KEY: ${{ secrets.API_KEY || secrets.ANTHROPIC_API_KEY }}
         MODEL_NAME: ${{ secrets.MODEL_NAME || 'claude-sonnet-4-5-20250929' }}
         EMAIL_SMTP_SERVER: ${{ secrets.EMAIL_SMTP_SERVER || 'smtp.163.com' }}

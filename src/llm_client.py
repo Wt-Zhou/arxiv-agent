@@ -28,22 +28,30 @@ class LLMClient:
             max_tokens: 最大token数
         """
         self.api_type = api_type.lower()
-        self.api_key = (api_key or os.getenv('API_KEY') or
+
+        # 安全地获取 API key
+        self.api_key = (api_key or
+                       os.getenv('API_KEY') or
                        os.getenv('ANTHROPIC_API_KEY') or
-                       os.getenv('OPENAI_API_KEY')).strip()
-        self.base_url = base_url
-        self.model = model
-        self.max_tokens = max_tokens
+                       os.getenv('OPENAI_API_KEY'))
+
+        if self.api_key:
+            self.api_key = self.api_key.strip()
 
         if not self.api_key:
             raise ValueError(f"未提供API密钥，请设置 api_key 参数或环境变量")
 
-        # 设置默认base_url
+        # 设置默认base_url (处理空字符串的情况)
+        self.base_url = base_url.strip() if base_url else None
+
         if not self.base_url:
             if self.api_type == "anthropic":
                 self.base_url = "https://api.anthropic.com"
             elif self.api_type == "openai":
                 self.base_url = "https://api.openai.com/v1"
+
+        self.model = model
+        self.max_tokens = max_tokens
 
         print(f"✓ 使用 {self.api_type.upper()} API")
         print(f"  - 模型: {self.model}")
@@ -102,7 +110,11 @@ class LLMClient:
             result = response.json()
             return result['content'][0]['text']
         else:
-            raise Exception(f"Anthropic API错误: {response.status_code} - {response.text[:200]}")
+            error_msg = f"Anthropic API错误: {response.status_code} - {response.text[:500]}"
+            error_msg += f"\n请求端点: {endpoint}"
+            error_msg += f"\n模型: {self.model}"
+            error_msg += f"\nAPI密钥前缀: {self.api_key[:10]}..." if len(self.api_key) > 10 else ""
+            raise Exception(error_msg)
 
     async def _call_openai(
         self,
