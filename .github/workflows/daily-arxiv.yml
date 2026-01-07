@@ -155,7 +155,11 @@ jobs:
           subject_prefix: "[ArXiv每日论文]"
         CONFIGEOF
 
-        # 替换环境变量
+        # 替换环境变量（确保所有变量都有值）
+        export API_TYPE="${API_TYPE:-openai}"
+        export API_BASE_URL="${API_BASE_URL:-https://leyitop.top/api/v1}"
+        export MODEL_NAME="${MODEL_NAME:-claude-sonnet-4-5-20250929}"
+
         envsubst < config.yaml > config.tmp && mv config.tmp config.yaml
 
         # 调试：显示生成的配置文件
@@ -163,10 +167,10 @@ jobs:
         cat config.yaml
         echo "============================="
       env:
-        API_TYPE: ${{ secrets.API_TYPE || 'openai' }}
-        API_BASE_URL: ${{ secrets.API_BASE_URL || 'https://leyitop.top/api/v1' }}
+        API_TYPE: ${{ secrets.API_TYPE }}
+        API_BASE_URL: ${{ secrets.API_BASE_URL }}
         API_KEY: ${{ secrets.API_KEY }}
-        MODEL_NAME: ${{ secrets.MODEL_NAME || 'claude-sonnet-4-5-20250929' }}
+        MODEL_NAME: ${{ secrets.MODEL_NAME }}
         EMAIL_SMTP_SERVER: ${{ secrets.EMAIL_SMTP_SERVER || 'smtp.163.com' }}
         EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT || '465' }}
         EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
