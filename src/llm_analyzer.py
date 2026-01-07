@@ -1,6 +1,6 @@
 """
 使用LLM分析论文相关性 - 两阶段优化版本
-使用OpenAI官方Python SDK
+支持多种LLM API
 """
 import os
 import asyncio
@@ -15,9 +15,10 @@ class LLMAnalyzer:
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "gpt-4o",
-        max_tokens: int = 4096,
+        model: str = "claude-sonnet-4-5-20250929",
+        max_tokens: int = 1024,
         base_url: Optional[str] = None,
+        api_type: str = "anthropic",
         max_concurrent: int = 5,
         batch_size: int = 25,
         detail_batch_size: int = 8
@@ -30,12 +31,14 @@ class LLMAnalyzer:
             model: 使用的模型名称
             max_tokens: 最大token数
             base_url: 自定义API端点 (可选)
+            api_type: API类型 ("anthropic" 或 "openai")
             max_concurrent: 最大并发请求数 (默认5)
             batch_size: 第一阶段批量筛选时每批论文数量 (默认25)
             detail_batch_size: 第二阶段批量详细分析时每批论文数量 (默认8)
         """
         # 创建LLM客户端
         self.llm_client = LLMClient(
+            api_type=api_type,
             api_key=api_key,
             base_url=base_url,
             model=model,

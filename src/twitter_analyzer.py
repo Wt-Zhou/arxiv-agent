@@ -1,6 +1,6 @@
 """
 Twitter内容分析模块
-使用LLM分析推文的相关性（使用OpenAI官方Python SDK）
+使用LLM分析推文的相关性
 """
 import asyncio
 import httpx
@@ -14,9 +14,10 @@ class TwitterAnalyzer:
     def __init__(
         self,
         api_key: str,
-        model: str = "gpt-4o",
-        max_tokens: int = 4096,
+        model: str = "claude-sonnet-4-5-20250929",
+        max_tokens: int = 1024,
         base_url: Optional[str] = None,
+        api_type: str = "anthropic",
         max_concurrent: int = 5
     ):
         """
@@ -27,9 +28,11 @@ class TwitterAnalyzer:
             model: 模型名称
             max_tokens: 最大token数
             base_url: 自定义API端点
+            api_type: API类型 ("anthropic" 或 "openai")
             max_concurrent: 最大并发请求数
         """
         self.llm_client = LLMClient(
+            api_type=api_type,
             api_key=api_key,
             base_url=base_url,
             model=model,

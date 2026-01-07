@@ -99,26 +99,42 @@ class ConfigLoader:
         # 向后兼容旧配置
         return int(self.get('days_back', 1))
 
+    def get_api_type(self) -> str:
+        """获取API类型 (anthropic 或 openai)"""
+        return self.get('api_type', 'anthropic')
+
     def get_model_name(self) -> str:
-        """获取模型名称"""
-        return self.get('model', 'gpt-4o')
+        """获取模型名称（兼容新旧配置）"""
+        # 优先使用新的 model 配置
+        model = self.get('model', None)
+        if model:
+            return model
+        # 向后兼容旧的 claude_model 配置
+        return self.get('claude_model', 'claude-sonnet-4-5-20250929')
 
     def get_max_tokens(self) -> int:
         """获取最大token数"""
-        return self.get('max_tokens', 4096)
+        # 优先使用新的 max_tokens 配置
+        max_tokens = self.get('max_tokens', None)
+        if max_tokens:
+            return max_tokens
+        # 向后兼容旧的 claude_max_tokens 配置
+        return self.get('claude_max_tokens', 1024)
 
     def get_output_dir(self) -> str:
         """获取输出目录"""
         return self.get('output_dir', 'reports')
 
     def get_api_base_url(self) -> str:
-        """获取API端点（默认为OpenAI官方API）"""
-        return self.get('base_url', 'https://api.openai.com/v1')
+        """获取API端点"""
+        return self.get('api_base_url', None)
 
     def get_api_key(self) -> str:
         """获取API密钥（优先从环境变量读取）"""
-        # 优先从环境变量读取
-        api_key = os.getenv('OPENAI_API_KEY') or os.getenv('API_KEY')
+        # 优先从环境变量读取（支持多种变量名）
+        api_key = (os.getenv('ANTHROPIC_API_KEY') or
+                   os.getenv('OPENAI_API_KEY') or
+                   os.getenv('API_KEY'))
         if api_key:
             return api_key.strip()
 
