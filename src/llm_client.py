@@ -123,7 +123,7 @@ class LLMClient:
         max_tokens: Optional[int],
         temperature: float,
     ) -> str:
-        """调用 OpenAI 兼容 API（支持国产模型）"""
+        """调用 OpenAI 兼容 API（支持第三方代理和国产模型）"""
         endpoint = f"{self.base_url}/chat/completions"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -142,4 +142,8 @@ class LLMClient:
             result = response.json()
             return result['choices'][0]['message']['content']
         else:
-            raise Exception(f"OpenAI API错误: {response.status_code} - {response.text[:200]}")
+            error_msg = f"OpenAI API错误: {response.status_code} - {response.text[:500]}"
+            error_msg += f"\n请求端点: {endpoint}"
+            error_msg += f"\n模型: {self.model}"
+            error_msg += f"\nAPI密钥前缀: {self.api_key[:15]}..." if len(self.api_key) > 15 else f"\nAPI密钥: {self.api_key}"
+            raise Exception(error_msg)
